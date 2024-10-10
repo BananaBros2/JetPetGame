@@ -1,0 +1,16 @@
+-Idle (standing still
+-Walk (moving while grounded
+-Turn (Changing direction
+-Jump (Pressing Jump w/ grounded
+-Fall (velocity.y < 0? and nothing
+-Fastfall (velocity's < 0?
+
+-Climb (Up/Down on ladder)
+-ClimbHold (idle on ladder)
+
+-Jet1 ( C / L)
+-Jet2 (X / K)
+-Jet3 (Shift + those other two)
+
+-Pickup (Pickup trigger)
+-Die ( where were you when x were kill sad)
