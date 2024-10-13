@@ -37,14 +37,14 @@ public class PlayerMovement : MonoBehaviour
     public List<Sprite> doubleChargeSprites = new List<Sprite>();
     public List<Sprite> tripleChargeSprites = new List<Sprite>();
 
-    
-
+    private PlayerAnimationScript animationScript;
+    private string animationAction;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>(); 
         batteryRenderer = transform.GetChild(0).GetComponent<SpriteRenderer>(); // Sprite Renderer for jetpack battery
-
+        animationScript = GetComponent<PlayerAnimationScript>();
     }
 
     // Start is called before the first frame update
@@ -59,7 +59,7 @@ public class PlayerMovement : MonoBehaviour
         grounded = groundCheck();
 
 
-        RaycastHit2D specialGrounded = Physics2D.BoxCast(transform.position, new Vector2(groundDetectionRange / 5, 0.05f), 0, -transform.up, 0.5f, Special);
+        RaycastHit2D specialGrounded = Physics2D.BoxCast(transform.position, new Vector2(groundDetectionRange / 4, 0.05f), 0, -transform.up, 0.5f, Special);
         if (specialGrounded)
         {
             if (climbing && Input.GetButtonDown("Vertical") && Input.GetAxisRaw("Vertical") < 0)
@@ -107,6 +107,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (Input.GetButtonDown("AbilityThree"))
         {
+            animationAction = "JetSideways";
             //cameraShaker.ShakeOnceStart();
             //chargesObtained++;
             print("epic");
@@ -130,6 +131,8 @@ public class PlayerMovement : MonoBehaviour
 
         if (climbing && transform.parent != null)
         {
+            animationScript.AnimationChange("Climb", grounded, 0, rb.velocity.x, rb.velocity.y);
+
             transform.position = Vector3.MoveTowards(transform.position, new Vector2(transform.parent.position.x, transform.position.y), 5 * Time.deltaTime);
             rb.gravityScale = 0;
             if (Input.GetButton("Jump"))
@@ -179,7 +182,6 @@ public class PlayerMovement : MonoBehaviour
 
         float horizontalInput = Input.GetAxisRaw("Horizontal");
 
-
         if (grounded)
         {
             rb.AddForce(new Vector2(horizontalInput * moveSpeed, 0));
@@ -210,8 +212,10 @@ public class PlayerMovement : MonoBehaviour
             boostCurPower = Mathf.Clamp(boostCurPower + 0.08f, 0, 1);
             rb.AddForce(new Vector2(0, 50 * boostCurPower));
             rb.velocity = new Vector2(rb.velocity.x, Mathf.Clamp(rb.velocity.y, -7, 6));
-            
-            if(!jetpackShaking)
+
+            animationAction = "Jet";
+
+            if (!jetpackShaking)
             {
                 cameraShaker.ConstantShakeStart();
             }
@@ -219,8 +223,13 @@ public class PlayerMovement : MonoBehaviour
 
             updateJetFuel(-1.5f);
         }
+        else if (Input.GetButton("AbilityOne") && fuelRemaining <= 0)
+        {
+            animationAction = "JetFail";
+        }
         else
         {
+            animationAction = "None";
             boostCurPower = 0;
         }
 
@@ -229,6 +238,7 @@ public class PlayerMovement : MonoBehaviour
             //rb.gravityScale = 0;
         }
 
+        animationScript.AnimationChange(animationAction, grounded, (int)horizontalInput, rb.velocity.x, rb.velocity.y);
     }
 
     private bool groundCheck()

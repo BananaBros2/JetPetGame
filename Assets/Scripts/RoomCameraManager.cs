@@ -11,7 +11,7 @@ public class RoomCameraManager : MonoBehaviour
     {
         if (collision.CompareTag("Player") && !collision.isTrigger)
         {
-            virtualCam.GetComponent<CinemachineVirtualCamera>().Priority++;
+            virtualCam.GetComponent<CinemachineVirtualCamera>().Priority = 11;
         }
     }
 
@@ -19,7 +19,7 @@ public class RoomCameraManager : MonoBehaviour
     {
         if (collision.CompareTag("Player") && !collision.isTrigger)
         {
-            virtualCam.GetComponent<CinemachineVirtualCamera>().Priority--;
+            virtualCam.GetComponent<CinemachineVirtualCamera>().Priority = 10;
         }
     }
     
