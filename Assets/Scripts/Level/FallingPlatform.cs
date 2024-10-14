@@ -57,8 +57,21 @@ public class FallingPlatform : MonoBehaviour
                 rb.constraints = RigidbodyConstraints2D.FreezeRotation;
                 transform.parent.GetComponent<FallingPlatformHolder>().SpawnNewPlatform();
                 transform.SetParent(null);
+                Invoke("DestroyPlatform", 5);
             }
             yield return new WaitForSeconds(waitTime);
+        }
+    }
+
+    private void DestroyPlatform()
+    {
+        if(transform.childCount == 0)
+        {
+            Destroy(this.gameObject);
+        }
+        else
+        {
+            Invoke("DestroyPlatform", 5);
         }
     }
 }

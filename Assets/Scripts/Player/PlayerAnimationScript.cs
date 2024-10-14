@@ -15,6 +15,9 @@ public class PlayerAnimationScript : MonoBehaviour
 
     public void AnimationChange(string action, bool grounded, int movDir, float velX, float velY)
     {
+        if (animator.GetBool("Died")) { return; }
+
+
         animator.SetBool("Grounded", grounded);
         animator.SetFloat("VelocityY", velY);
         animator.SetFloat("AbsoluteVelocityX", Mathf.Abs(velX));
@@ -27,7 +30,7 @@ public class PlayerAnimationScript : MonoBehaviour
 
         if (action == "Death") // Death
         {
-
+            animator.SetBool("Died", true);
         }
         if (action == "Pickup") // Pickup
         {
@@ -74,14 +77,12 @@ public class PlayerAnimationScript : MonoBehaviour
                 animator.SetTrigger("TurnAround");
                 flipped = false;
                 spriteRenderer.flipX = false;
-                print("turn right");
             }
             else if (movDir < 0 && !flipped) // Turn left
             {
                 animator.SetTrigger("TurnAround");
                 flipped = true;
                 spriteRenderer.flipX = true;
-                print("turn left");
             }
 
             if (movDir > 0) // Walk right

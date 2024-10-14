@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using UnityEditor.Timeline.Actions;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,9 +11,12 @@ public class PlayerMovement : MonoBehaviour
 {
     private Rigidbody2D rb;
     public CameraVibration cameraShaker;
+    public CanvasTransition transition;
 
     public LayerMask Ground;
     public LayerMask Special;
+
+    public bool disableInput = true;
 
     public float groundDetectionRange = 0.5f;
 
@@ -37,6 +41,8 @@ public class PlayerMovement : MonoBehaviour
     public List<Sprite> doubleChargeSprites = new List<Sprite>();
     public List<Sprite> tripleChargeSprites = new List<Sprite>();
 
+    public GameObject boomerang;
+
     private PlayerAnimationScript animationScript;
     private string animationAction;
 
@@ -56,6 +62,15 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (disableInput) { return; }
+
+
+        if (Input.GetButtonDown("Restart"))
+        {
+            KillPlayer();
+            return;
+        }
+
         grounded = groundCheck();
 
 
@@ -104,18 +119,39 @@ public class PlayerMovement : MonoBehaviour
             }
         }
 
+        if (Input.GetButtonDown("AbilityTwo"))
+        {
+            KillPlayer();
+        }
 
         if (Input.GetButtonDown("AbilityThree"))
         {
-            animationAction = "JetSideways";
-            //cameraShaker.ShakeOnceStart();
-            //chargesObtained++;
+            BoomerangScript newBoomerang = Instantiate(boomerang, transform.position, Quaternion.identity).GetComponent<BoomerangScript>();
+            newBoomerang.player = transform.gameObject;
+
+            int horizontalDirection = 0;
+            if (Input.GetAxisRaw("Vertical") == 0)
+            {
+                horizontalDirection = transform.GetComponent<PlayerAnimationScript>().flipped ? -1 : 1;
+            }
+            newBoomerang.direction = new Vector2(horizontalDirection, Input.GetAxisRaw("Vertical")).normalized;
             print("epic");
         }
+
+        //animationAction = "JetSideways";
+        //cameraShaker.ShakeOnceStart();
+        //chargesObtained++;
     }
+
 
     private void FixedUpdate()
     {
+        if (disableInput) 
+        {
+            rb.velocity = new Vector2(rb.velocity.x * 0.7f, rb.velocity.y);
+            return; 
+        }
+
         coyoteTime--;
         lastInput--;
         timeBetweenLadders-= Time.fixedDeltaTime;
@@ -341,6 +377,14 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.CompareTag("Hazard") && !disableInput)
+        {
+            KillPlayer();
+        }
+    }
+
     private void OnTriggerStay2D(Collider2D collision)
     {
         if (collision.CompareTag("Climbable") && Input.GetAxisRaw("Vertical") == 1 && timeBetweenLadders < 0)
@@ -353,7 +397,7 @@ public class PlayerMovement : MonoBehaviour
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        if (this.transform.parent != null)
+        if (this.transform.parent != null && collision.CompareTag("Climbable"))
         {
             this.transform.parent.GetComponent<LadderValues>().ActivatePlatform();
 
@@ -372,5 +416,12 @@ public class PlayerMovement : MonoBehaviour
 
         Vector3 exVelocity = new Vector3(exForceX, exForceY, Mathf.Abs(exForceX + Input.GetAxisRaw("Horizontal")) + Mathf.Abs(exForceY + Input.GetAxisRaw("Vertical")));
         mostExtremeForces[exForceStep] = exVelocity;
+    }
+
+    private void KillPlayer()
+    {
+        animationScript.AnimationChange("Death", true, 0, 0, 0);
+        disableInput = true;
+        transition.DiedTransition();
     }
 }
