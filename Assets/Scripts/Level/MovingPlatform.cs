@@ -30,7 +30,7 @@ public class MovingPlatform : MonoBehaviour
 
         transform.GetChild(0).position = Vector2.MoveTowards(transform.GetChild(0).position, targetPosition, platformSpeed / 10);
 
-        if (Vector2.Distance(transform.GetChild(0).position, new Vector2(stageTrack[currentPoint].x + offset.x, stageTrack[currentPoint].y + offset.y)) < 0.1f)
+        if (Vector2.Distance(transform.GetChild(0).position, new Vector2(stageTrack[currentPoint].x + offset.x, stageTrack[currentPoint].y + offset.y)) < 0.001f)
         {
             currentPoint += flipped;
 
