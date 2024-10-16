@@ -50,7 +50,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Jet3
+  m_Name: Jet Failing
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions: []
@@ -145,9 +145,9 @@ AnimatorStateTransition:
   m_PrefabAsset: {fileID: 0}
   m_Name: 
   m_Conditions:
-  - m_ConditionMode: 1
-    m_ConditionEvent: Moving
-    m_EventTreshold: 0
+  - m_ConditionMode: 3
+    m_ConditionEvent: AbsoluteVelocityX
+    m_EventTreshold: 1
   - m_ConditionMode: 1
     m_ConditionEvent: Grounded
     m_EventTreshold: 0
@@ -156,6 +156,12 @@ AnimatorStateTransition:
     m_EventTreshold: 0
   - m_ConditionMode: 2
     m_ConditionEvent: Died
+    m_EventTreshold: 0
+  - m_ConditionMode: 2
+    m_ConditionEvent: UsingJet
+    m_EventTreshold: 0
+  - m_ConditionMode: 2
+    m_ConditionEvent: JetSideways
     m_EventTreshold: 0
   m_DstStateMachine: {fileID: 0}
   m_DstState: {fileID: -4412846132524158441}
@@ -269,7 +275,7 @@ AnimatorStateMachine:
     m_Position: {x: -190, y: 210, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 7766293317159569953}
-    m_Position: {x: -450, y: 0, z: 0}
+    m_Position: {x: -450, y: -20, z: 0}
   - serializedVersion: 1
     m_State: {fileID: 603165827224148930}
     m_Position: {x: -70, y: 250, z: 0}
@@ -434,7 +440,7 @@ AnimatorState:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Walking
-  m_Speed: 1
+  m_Speed: 0.8
   m_CycleOffset: 0
   m_Transitions: []
   m_StateMachineBehaviours: []
@@ -744,7 +750,10 @@ AnimatorStateTransition:
     m_EventTreshold: 0
   - m_ConditionMode: 3
     m_ConditionEvent: AbsoluteVelocityX
-    m_EventTreshold: 0.08
+    m_EventTreshold: 0.06
+  - m_ConditionMode: 4
+    m_ConditionEvent: AbsoluteVelocityX
+    m_EventTreshold: 1
   - m_ConditionMode: 2
     m_ConditionEvent: Moving
     m_EventTreshold: 0
@@ -784,9 +793,18 @@ AnimatorStateTransition:
     m_EventTreshold: 0
   - m_ConditionMode: 4
     m_ConditionEvent: AbsoluteVelocityX
-    m_EventTreshold: 0.08
+    m_EventTreshold: 0.06
   - m_ConditionMode: 2
     m_ConditionEvent: Died
+    m_EventTreshold: 0
+  - m_ConditionMode: 2
+    m_ConditionEvent: Climbing
+    m_EventTreshold: 0
+  - m_ConditionMode: 2
+    m_ConditionEvent: UsingJet
+    m_EventTreshold: 0
+  - m_ConditionMode: 2
+    m_ConditionEvent: JetSideways
     m_EventTreshold: 0
   m_DstStateMachine: {fileID: 0}
   m_DstState: {fileID: -4688579300639023470}
@@ -802,6 +820,28 @@ AnimatorStateTransition:
   m_InterruptionSource: 0
   m_OrderedInterruption: 1
   m_CanTransitionToSelf: 0
+--- !u!1101 &5705661031559958860
+AnimatorStateTransition:
+  m_ObjectHideFlags: 1
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_Conditions: []
+  m_DstStateMachine: {fileID: 0}
+  m_DstState: {fileID: -4412846132524158441}
+  m_Solo: 0
+  m_Mute: 0
+  m_IsExit: 0
+  serializedVersion: 3
+  m_TransitionDuration: 0.25
+  m_TransitionOffset: 0
+  m_ExitTime: 1
+  m_HasExitTime: 1
+  m_HasFixedDuration: 1
+  m_InterruptionSource: 0
+  m_OrderedInterruption: 1
+  m_CanTransitionToSelf: 1
 --- !u!1101 &5710405763535948269
 AnimatorStateTransition:
   m_ObjectHideFlags: 1
@@ -837,7 +877,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Jet2
+  m_Name: Jet Sideways
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions: []
@@ -850,7 +890,7 @@ AnimatorState:
   m_MirrorParameterActive: 0
   m_CycleOffsetParameterActive: 0
   m_TimeParameterActive: 0
-  m_Motion: {fileID: 7400000, guid: 83758548db6ca4f4eb794ae9f12a0986, type: 2}
+  m_Motion: {fileID: 7400000, guid: 28a7617a7656bcb41be6f5fd59780531, type: 2}
   m_Tag: 
   m_SpeedParameter: 
   m_MirrorParameter: 
@@ -892,7 +932,8 @@ AnimatorState:
   m_Name: Turn
   m_Speed: 1
   m_CycleOffset: 0
-  m_Transitions: []
+  m_Transitions:
+  - {fileID: 5705661031559958860}
   m_StateMachineBehaviours: []
   m_Position: {x: 50, y: 50, z: 0}
   m_IKOnFeet: 0
@@ -915,7 +956,7 @@ AnimatorState:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Jet1
+  m_Name: Jet
   m_Speed: 1
   m_CycleOffset: 0
   m_Transitions: []

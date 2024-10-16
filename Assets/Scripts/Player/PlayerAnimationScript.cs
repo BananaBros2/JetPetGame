@@ -6,6 +6,8 @@ using UnityEngine.EventSystems;
 public class PlayerAnimationScript : MonoBehaviour
 {
     public Animator animator;
+    public Animator flameAnimator;
+
     public SpriteRenderer spriteRenderer;
     public bool flipped;
     public bool animating;
@@ -22,7 +24,7 @@ public class PlayerAnimationScript : MonoBehaviour
         animator.SetFloat("VelocityY", velY);
         animator.SetFloat("AbsoluteVelocityX", Mathf.Abs(velX));
 
-        if (!grounded && ((movDir == 1 && flipped) || (movDir == -1 && !flipped)))
+        if (!grounded && ((movDir == 1 && flipped) || (movDir == -1 && !flipped)) && action != "JetSideways")
         {
             flipped = !flipped;
             spriteRenderer.flipX = flipped;
@@ -69,16 +71,13 @@ public class PlayerAnimationScript : MonoBehaviour
 
         if (grounded)
         {
-
-
-
-            if (movDir > 0 && flipped) //Turn right
+            if (movDir > 0 && flipped && action != "JetSideways") //Turn right (While not burst jetting horizontally)
             {
                 animator.SetTrigger("TurnAround");
                 flipped = false;
                 spriteRenderer.flipX = false;
             }
-            else if (movDir < 0 && !flipped) // Turn left
+            else if (movDir < 0 && !flipped && action != "JetSideways") // Turn left (While not burst jetting horizontally)
             {
                 animator.SetTrigger("TurnAround");
                 flipped = true;
@@ -88,12 +87,10 @@ public class PlayerAnimationScript : MonoBehaviour
             if (movDir > 0) // Walk right
             {
                 animator.SetBool("Moving", true);
-                //print("right");
             }
             else if (movDir < 0) // Walk left
             {
                 animator.SetBool("Moving", true);
-                //print("left");
             }
             else
             {
@@ -105,9 +102,22 @@ public class PlayerAnimationScript : MonoBehaviour
         animator.SetBool("UsingJet", false);
         animator.SetBool("JetSideways", false);
         animator.SetBool("JetFail", false);
+        flameAnimator.SetBool("Vertical", false);
+        flameAnimator.SetBool("Horizontal", false);
 
-        if (action == "Jet") // Vertical Jet Actions
+        if (action == "JetVertical") // Vertical Jet Actions
         {
+            flameAnimator.SetBool("Vertical", true);
+            animator.SetBool("UsingJet", true);
+        }
+        else if (action == "JetHorizontal") // Vertical Jet Actions
+        {
+            flameAnimator.SetBool("Horizontal", true);
+            animator.SetBool("UsingJet", true);
+        }
+        else if (action == "JetBurst") // Vertical Jet Actions
+        {
+            flameAnimator.SetTrigger("Burst");
             animator.SetBool("UsingJet", true);
         }
         else if (action == "JetSideways") // Vertical Instant Boost (Jetpack Dash)

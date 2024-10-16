@@ -6,9 +6,7 @@ public class CameraVibration : MonoBehaviour
 {
 
     Vector3 originalTransform;
-    float shakeDuration = 2;
     private float shakeMagnitude = 0.04f;
-    private float dampingSpeed = 1.0f;
 
     private void Awake()
     {
@@ -22,17 +20,18 @@ public class CameraVibration : MonoBehaviour
 
     private IEnumerator ShakeOnce(float waitTime)
     {
-        while (true)
+        float shakeDuration = 0.15f;
+        bool shaking = true;
+        while (shaking)
         {
             if (shakeDuration > 0)
             {
-                transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude;
-                print(shakeDuration);
-                shakeDuration -= Time.deltaTime * dampingSpeed;
+                transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude * 3;
+                shakeDuration -= waitTime;
             }
             else
             {
-                shakeDuration = 0f;
+                shaking = false;
                 transform.localPosition = originalTransform;
             }
             yield return new WaitForSeconds(waitTime);

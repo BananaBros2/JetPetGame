@@ -37,17 +37,19 @@ public class BoomerangScript : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        print("hi");
         if ((((1 << collision.gameObject.layer) & collideWith) != 0) && lifeRemaining > 0)
         {
             lifeRemaining = 0;
 
         }
-        else if (collision.transform.CompareTag("Player") && lifeRemaining < 0)
+        else if ((((1 << collision.gameObject.layer) & collideWith) != 0) && lifeRemaining < 0.5f)
         {
             Destroy(this.gameObject);
         }
-        else if ((((1 << collision.gameObject.layer) & collideWith) != 0) && lifeRemaining < 0.5f)
+    }
+    private void OnTriggerStay2D(Collider2D collision)
+    {
+        if (collision.transform.CompareTag("Player") && lifeRemaining < 0)
         {
             Destroy(this.gameObject);
         }
