@@ -5,11 +5,12 @@ using UnityEngine;
 
 public class RoomCameraManager : MonoBehaviour
 {
+    [Header("References")]
     public GameObject virtualCam; // Camera Controller
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.CompareTag("Player") && !collision.isTrigger)
+        if (collision.CompareTag("Player"))
         {
             virtualCam.GetComponent<CinemachineVirtualCamera>().Priority = 11; // Increase the camera (location's) priority so that the camera pans over to the created area 
         }
@@ -17,7 +18,7 @@ public class RoomCameraManager : MonoBehaviour
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        if (collision.CompareTag("Player") && !collision.isTrigger)
+        if (collision.CompareTag("Player"))
         {
             virtualCam.GetComponent<CinemachineVirtualCamera>().Priority = 10; // Reset the camera (location's) priority
         }

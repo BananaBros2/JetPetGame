@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
+    [Header("Respawn Information")]
     public Vector2 respawnPosition; // The last position the player activated a checkpoint at
 
 
@@ -32,11 +33,13 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    /// <summary> Load a scene through it's name</summary>
     public void LoadScene(string sceneName)
     {
         SceneManager.LoadScene(sceneName, LoadSceneMode.Single); // Load the scene from the given name
     }
 
+    /// <summary> Reload the currently actively scene </summary>
     public void ReloadScene()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().name, LoadSceneMode.Single); // Reload the currently active scene

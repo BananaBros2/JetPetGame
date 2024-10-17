@@ -1,12 +1,8 @@
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using UnityEditor.Timeline.Actions;
 using UnityEngine;
 using UnityEngine.UI;
-using static UnityEngine.ParticleSystem;
 
 public class PlayerMovement : MonoBehaviour
 {

@@ -1,31 +1,29 @@
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Timeline.Actions;
 using UnityEngine;
 using UnityEngine.UI;
 using Cinemachine;
 
 public class CanvasTransition : MonoBehaviour
 {
+    [Header("References")]
     private GameObject gameManager;
     private Image blockSprite;
     private GameObject player;
-
     public CinemachineBrain cinemachineBrain;
-    private float cinemachineNormalSpeed;
 
-    public bool activatedInput;
+    [Header("Transition Speeds")]
+    public float scrollRevealSpeed = 4500; // Scroll Transitions
+    public float scrollHideSpeed = 4500;
+    public float opacityIncreaseRate = 0.08f; // Fade (Death) Transitions
+    public float opacityDecreaseRate = 0.08f;
 
-    public float revealSpeed;
-    public float hideSpeed;
-    public float endDestination = 1000;
-
+    private float cinemachineNormalSpeed; // Variable for saving cinemachine scroll duration value
     private string currentState = "Revive";
     private string nextScene = "Unknown";
 
-    public float opacityIncreaseRate = 0.08f;
-    public float opacityDecreaseRate = 0.08f;
 
+    public float endDestination = 1000; // Temporary Solution
 
 
     private void Start() // Called when first active
@@ -38,12 +36,14 @@ public class CanvasTransition : MonoBehaviour
         cinemachineBrain.m_DefaultBlend.m_Time = 0.01f;  // Sets the scroll duration to be very low so that the camera can scroll to the player when a scene is loaded
     }
 
+    /// <summary>Scrolling screen transition that will reveal game view</summary>
     public void RevealTransition()
     {
-        currentState = "Uncover";
+        currentState = "Uncover"; // Will be used later in fixedUpdate to create the scrolling transition
     }
 
-    public void OutTransition(string requestedScene)
+    /// <summary>Scrolling screen transition that will block game view</summary>
+    public void CoverTransition(string requestedScene)
     {
         transform.position = new Vector2(transform.position.x, endDestination + Screen.height);
         nextScene = requestedScene;
@@ -51,7 +51,7 @@ public class CanvasTransition : MonoBehaviour
        
     }
 
-
+    /// <summary> Fade-in screen transition that will block game view</summary>
     public void DiedTransition()
     {
         blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 0); // Set initial opacity to 0, although this will likely already be transparent
@@ -59,6 +59,7 @@ public class CanvasTransition : MonoBehaviour
         currentState = "Die";
     }
 
+    /// <summary> Fade-out screen transition that will reveal game view</summary>
     public void DiedRevealTransition()
     {
         blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 1); // Set initial opacity to max so that it can then be reduced
@@ -71,12 +72,12 @@ public class CanvasTransition : MonoBehaviour
     {
         switch (currentState)
         {
-            case "Uncover":
+            case "Uncover": // If you are reading this, then I forgot to do something ######################################################
                 if (transform.position.y > -Screen.height / 2 - endDestination)
                 {
-                    transform.position = new Vector2(transform.position.x, transform.position.y - revealSpeed * Time.deltaTime);
+                    transform.position = new Vector2(transform.position.x, transform.position.y - scrollRevealSpeed * Time.deltaTime);
                 }
-                else if (!activatedInput)
+                else
                 {
                     cinemachineBrain.m_DefaultBlend.m_Time = cinemachineNormalSpeed;
                     player.GetComponent<PlayerMovement>().disableInput = false;
@@ -85,7 +86,7 @@ public class CanvasTransition : MonoBehaviour
             case "Cover":
                 if (transform.position.y > Screen.height / 2)
                 {
-                    transform.position = new Vector2(transform.position.x, transform.position.y - hideSpeed * Time.deltaTime);
+                    transform.position = new Vector2(transform.position.x, transform.position.y - scrollHideSpeed * Time.deltaTime);
                 }
                 else
                 {
@@ -98,7 +99,7 @@ public class CanvasTransition : MonoBehaviour
                 {
                     blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, blockSprite.color.a - opacityDecreaseRate); // Increase Opacity by set value
                 }
-                else if (!activatedInput)
+                else
                 {
                     cinemachineBrain.m_DefaultBlend.m_Time = cinemachineNormalSpeed; // Reset the camera speed to normal
                     player.GetComponent<PlayerMovement>().disableInput = false; // Renable the player's ability to move
