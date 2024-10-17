@@ -4,8 +4,9 @@ using UnityEngine;
 
 public class FallingPlatformHolder : MonoBehaviour
 {
-    public GameObject platformPrefab;
+    public GameObject platformPrefab; // Prefab for falling object
     public GameObject player;
+
     public void SpawnNewPlatform()
     {
         StartCoroutine("PlatformCountdown");
@@ -13,17 +14,9 @@ public class FallingPlatformHolder : MonoBehaviour
 
     private IEnumerator PlatformCountdown()
     {
-        yield return new WaitForSeconds(4);
+        yield return new WaitForSeconds(4); // Waits 4 seconds before spawning new platform
 
-        bool notSpawned = true;
-        while (notSpawned)
-        {
-            GameObject newPlatform = Instantiate(platformPrefab, transform.position, Quaternion.identity, transform);
-            
-            notSpawned = false;
-            yield return new WaitForSeconds(0.5f);
-
-        }
+        GameObject newPlatform = Instantiate(platformPrefab, transform.position, Quaternion.identity, transform); // Create replacement platform
     }
 }
 

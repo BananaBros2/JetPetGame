@@ -6,7 +6,9 @@ public class CameraVibration : MonoBehaviour
 {
 
     Vector3 originalTransform;
-    private float shakeMagnitude = 0.04f;
+    public float shakeMagnitude = 0.04f;
+    public float powerfulShakeMagnitude = 0.12f;
+    public float timeBetweenIndShakes = 0.01f;
 
     private void Awake()
     {
@@ -15,7 +17,7 @@ public class CameraVibration : MonoBehaviour
 
     public void ShakeOnceStart()
     {
-        StartCoroutine("ShakeOnce", 0.01f);
+        //StartCoroutine("ShakeOnce", timeBetweenIndShakes); // Start coroutine to shake the camera for a brief period of time
     }
 
     private IEnumerator ShakeOnce(float waitTime)
@@ -26,32 +28,33 @@ public class CameraVibration : MonoBehaviour
         {
             if (shakeDuration > 0)
             {
-                transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude * 3;
+                transform.localPosition = originalTransform + Random.insideUnitSphere * powerfulShakeMagnitude; // Changes the camera's offset to a random value within an area around the original position
+                yield return new WaitForSeconds(waitTime);
                 shakeDuration -= waitTime;
             }
             else
             {
                 shaking = false;
-                transform.localPosition = originalTransform;
+                transform.localPosition = originalTransform; // Resets the camera's position to the original state
             }
             yield return new WaitForSeconds(waitTime);
         }
     }
     public void ConstantShakeStart()
     {
-        StartCoroutine("ConstantShake", 0.01f);
+        StartCoroutine("ConstantShake", timeBetweenIndShakes);
     }
     public void ConstantShakeCancel()
     {
-        StopCoroutine("ConstantShake");
-        transform.localPosition = originalTransform;
+        StopCoroutine("ConstantShake"); // Stop shaking coroutine
+        transform.localPosition = originalTransform; // Resets the camera's position to the original state
     }
 
     private IEnumerator ConstantShake(float waitTime)
     {
         while (true)
         {
-            transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude;
+            transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude; // Changes the camera's offset to a random value within an area around the original position
             yield return new WaitForSeconds(waitTime);
 
         }

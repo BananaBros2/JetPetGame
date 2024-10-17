@@ -5,34 +5,41 @@ using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    public Vector2 respawnPosition;
+    public Vector2 respawnPosition; // The last position the player activated a checkpoint at
 
-    // Start is called before the first frame update
-    void Awake()
+
+    void Awake() // Important that this activates before any other object, otherwise other objects may fail to find any GameManager
     {
-        if (GameObject.FindGameObjectWithTag("GameManager") != null)
+        if (GameObject.FindGameObjectWithTag("GameManager") != null) // Checks if there is already a GameManager loaded from previous scene
         {
-            Destroy(this.gameObject);
+            Destroy(this.gameObject); // Destroy self so that only the original remains
             return;
         }
-        else
+        else // If no other GameManager is located
         {
-            transform.tag = "GameManager";
-            DontDestroyOnLoad(this.gameObject);
+            DontDestroyOnLoad(this.gameObject); // Persist between scenes so that information stored can be saved
+            transform.tag = "GameManager"; // Add the tag to the object so that other future GameManagers can locate this by tag
+
         }
     }
 
     private void OnLevelWasLoaded(int level)
     {
-        if (respawnPosition != new Vector2(0, 0))
+        if (respawnPosition != new Vector2(0, 0)) // If respawnPosition has not yet been changed
         {
 
-            GameObject.FindGameObjectWithTag("Player").transform.position = respawnPosition;
+            GameObject.FindGameObjectWithTag("Player").transform.position = respawnPosition; // Relocate the player to the last saved checkpoint
         }
     }
 
-    public void LoadNextScene()
+    public void LoadScene(string sceneName)
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name, LoadSceneMode.Single);
+        SceneManager.LoadScene(sceneName, LoadSceneMode.Single); // Load the scene from the given name
     }
+
+    public void ReloadScene()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name, LoadSceneMode.Single); // Reload the currently active scene
+    }
+
 }

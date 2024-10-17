@@ -40,7 +40,7 @@ public class FallingPlatform : MonoBehaviour
 
     }
 
-    private IEnumerator Collapse(float waitTime)
+    private IEnumerator Collapse(float waitTime) 
     {
         while (true)
         {
@@ -63,7 +63,7 @@ public class FallingPlatform : MonoBehaviour
         }
     }
 
-    private void DestroyPlatform()
+    private void DestroyPlatform() // Destroy the platform only if there is nothing still attached to it i.e. the player
     {
         if(transform.childCount == 0)
         {
