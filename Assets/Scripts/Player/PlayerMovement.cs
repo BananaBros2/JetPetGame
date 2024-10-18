@@ -4,11 +4,13 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerMovement : MonoBehaviour // This is a very movement-focused game so a lot of logic in here
 {
     private Rigidbody2D rb;
     public CameraVibration cameraShaker;
     public CanvasTransition transition;
+    private GameObject gameManager;
+    public GameObject explosionPrefab;
 
     public LayerMask Ground;
     public LayerMask Special;
@@ -56,6 +58,7 @@ public class PlayerMovement : MonoBehaviour
     public Vector3 horizontalBurstForce = new Vector3(15, 20, 25);
     private int horizontalBurstLeft;
     private string jetTypeUsing = "None";
+    private float horizontalJetSpeedMultiplier = 1.25f;
 
     private void Awake() // Called once when first existent 
     {
@@ -64,14 +67,18 @@ public class PlayerMovement : MonoBehaviour
         animationScript = GetComponent<PlayerAnimationScript>(); // Animator on character sprite
     }
 
-    
+    private void Start()
+    {
+        gameManager = GameObject.FindGameObjectWithTag("GameManager"); // Get the GameManager
+    }
+
     void Update() // Update is called once per frame
     {
         if (disableInput) { return; } // Stop all immediate controls when disableInput is true
 
         if (Input.GetButtonDown("Restart")) // Restart functionality 
         {
-            KillPlayer(); 
+            KillPlayer();
             return; // Prevents any accidental inputs before disableInput activates
         }
 
@@ -82,7 +89,7 @@ public class PlayerMovement : MonoBehaviour
 
             if (fuelRemaining < 100 * chargesObtained) // Only refuels up to current maximum
             {
-                updateJetFuel(1*chargesObtained);
+                updateJetFuel(1 * chargesObtained);
             }
 
             curCoyoteTime = coyoteTime; // CoyoteTimer reset
@@ -102,127 +109,40 @@ public class PlayerMovement : MonoBehaviour
             else if (!climbing && Input.GetAxisRaw("Vertical") < 0 && timeBetweenLadders < 0) // If on top platform and down is pressed
             {
                 climbing = true;
-                this.transform.SetParent(specialGrounded.transform.parent);
+                this.transform.SetParent(specialGrounded.transform.parent); // Attach to ladder from top
                 this.transform.parent.GetComponent<LadderValues>().DeactivatePlatform();
             }
-
         }
 
 
-        if (lastInput > 0) // Inititates a jump if the jump was pressed within the last n (lastInputLimit) fixedframes, good for an instant jump when landing
-        {
-            if (curCoyoteTime > 0) // Can jump even if in midair as long as they were grounded within n (curCoyoteTime) fixedframes ago
-            {                     // curCoyoteTime is constantly reset to max when grounded so will jump 100% of the time when grounded
+        Jump(); // Method for inital jump input with buffering
 
-                rb.velocity = new Vector2(rb.velocity.x * 0.8f, jumpHeight); // Add upwards velocity, tweaked further in FixedUpdate()
-                lastInput = 0; // Resets lastinput so another is required before instant jumping again
-                curCoyoteTime = 0; // Resets coyote jumping until next landing
-            }
-        }
-        else if (Input.GetButton("Jump")) // If didn't have jump input saved, will instead take this route
-        {
-            if (curCoyoteTime > 0 || grounded) // If grounded or just left ground with coyoteTime remaining
-            {
-                
-                rb.velocity = new Vector2(rb.velocity.x * 0.8f, jumpHeight); // Add upwards velocity
-                lastInput = 0; // Resets lastinput so another is required before instant jumping again
-                curCoyoteTime = 0; // Resets coyote jumping until next landing
-            }
-            else
-            {
-                lastInput = lastInputLimit; // Saves jump input if unable to currently jump (Jump buffering)
-            }
-        }
+        VerticalBurstJetpack(); // Single Vertical boost which requires a two button to be pressed
+        HorizontalBurstJetpack(); // Single Horizontal boost which requires a two button to be pressed
 
-
-        if (Input.GetButtonDown("AbilityOne") && Input.GetButton("Alternative") && fuelRemaining > 0 && canNextJet)
-        {
-
-            float burstPower = Mathf.Clamp(Mathf.CeilToInt(fuelRemaining / 33), 1, 3);
-
-            if (burstPower >= 3) { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.z); }
-            else if (burstPower == 2) { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.y); }
-            else { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.x); }
-
-            cameraShaker.ShakeOnceStart();
-
-            updateJetFuel(-100);
-
-            rb.gravityScale = 8;
-
-            jetTypeUsing = "VBurst";
-            canNextJet = false;
-
-            animationAction = "JetBurst";
-        }
-        if(rb.velocity.y < 0 && jetTypeUsing == "VBurst")
-        {
-            canNextJet = true;
-            jetTypeUsing = "None";
-        }
-
-
-        if (Input.GetButtonDown("AbilityTwo") && Input.GetButton("Alternative") && fuelRemaining > 0 && canNextJet)
-        {
-            int direction = animationScript.flipped ? -1 : 1;
-            float burstPower = Mathf.Clamp(Mathf.CeilToInt(fuelRemaining / 33), 1, 3);
-            
-            if (burstPower >= 3) { rb.velocity = new Vector2(horizontalBurstForce.z * direction, 0); }
-            else if (burstPower == 2) { rb.velocity = new Vector2(horizontalBurstForce.y * direction, 0); }
-            else { rb.velocity = new Vector2(horizontalBurstForce.x * direction, 0); }
-
-            cameraShaker.ShakeOnceStart();
-
-            updateJetFuel(-100);
-
-            rb.gravityScale = 0;
-
-            jetTypeUsing = "HBurst";
-            canNextJet = false;
-
-            animationAction = "JetSideways";
-        }
-        else if (Mathf.Abs(rb.velocity.x) < 3 && jetTypeUsing == "HBurst")
-        {
-            canNextJet = true;
-            jetTypeUsing = "None";
-        }
-
-
-
-        if (Input.GetButtonDown("AbilityThree"))
-        {
-            BoomerangScript newBoomerang = Instantiate(boomerang, transform.position, Quaternion.identity).GetComponent<BoomerangScript>();
-            newBoomerang.player = transform.gameObject;
-
-            int horizontalDirection = 0;
-            if (Input.GetAxisRaw("Vertical") == 0)
-            {
-                horizontalDirection = transform.GetComponent<PlayerAnimationScript>().flipped ? -1 : 1;
-            }
-            newBoomerang.direction = new Vector2(horizontalDirection, Input.GetAxisRaw("Vertical")).normalized;
-            print("epic");
-        }
-
+        ThrowBoomerang(); // Method for creating the boomerang
     }
+
+
+
 
 
     private void FixedUpdate()
     {
-        if (disableInput) 
+        if (disableInput)
         {
             rb.velocity = new Vector2(rb.velocity.x * 0.7f, rb.velocity.y);
-            return; 
+            return;
         }
 
         curCoyoteTime--;
         lastInput--;
-        timeBetweenLadders-= Time.fixedDeltaTime;
+        timeBetweenLadders -= Time.fixedDeltaTime;
         horizontalBurstLeft--;
 
         if (jetpackShaking)
         {
-            if(!(Input.GetButton("AbilityOne") && !grounded && rb.velocity.y < 5 && fuelRemaining > 0))
+            if (!(Input.GetButton("AbilityOne") && !grounded && rb.velocity.y < 5 && fuelRemaining > 0))
             {
                 cameraShaker.ConstantShakeCancel();
                 jetpackShaking = false;
@@ -290,7 +210,7 @@ public class PlayerMovement : MonoBehaviour
         }
         else if (jetTypeUsing == "JetHorizontal")
         {
-            rb.AddForce(new Vector2(horizontalInput * moveSpeed * 1.4f, 0));
+            rb.AddForce(new Vector2(horizontalInput * moveSpeed * horizontalJetSpeedMultiplier, 0));
             rb.velocity = new Vector2(rb.velocity.x * 0.85f, rb.velocity.y);
         }
         else if (grounded)
@@ -314,10 +234,55 @@ public class PlayerMovement : MonoBehaviour
         }
 
 
+        VerticalJetPack(); // Vertical boost which requires constant input
+        HorizontalJetpack(); // Horizontal boost which requires constant input
 
 
-        // Jetpack
+        if (jetTypeUsing == "None")
+        {
+            animationAction = "None";
+        }
+        animationScript.AnimationChange(animationAction, grounded, (int)horizontalInput, rb.velocity.x, rb.velocity.y);
+        if (animationAction == "JetBurst")
+        {
+            animationAction = "None";
+        }
 
+    }
+
+    /// <summary> Method for player jumping with controllable input buffer </summary>
+    private void Jump()
+    {
+        if (lastInput > 0) // Inititates a jump if the jump was pressed within the last n (lastInputLimit) fixedframes, good for an instant jump when landing
+        {
+            if (curCoyoteTime > 0) // Can jump even if in midair as long as they were grounded within n (curCoyoteTime) fixedframes ago
+            {                     // curCoyoteTime is constantly reset to max when grounded so will jump 100% of the time when grounded
+
+                rb.velocity = new Vector2(rb.velocity.x * 0.8f, jumpHeight); // Add upwards velocity, tweaked further in FixedUpdate(), reduces horizontal speed slightly so that instant buffered jumps don't store velocity 
+                lastInput = 0; // Resets lastinput so another is required before instant jumping again
+                curCoyoteTime = 0; // Resets coyote jumping until next landing
+            }
+        }
+        else if (Input.GetButton("Jump") && jetTypeUsing != "HBurst") // If didn't have jump input saved, will instead take this route, 
+        {           // prevents jumping while horizontally bursting so that the player can't rise into the air with the lack of gravity
+
+            if (curCoyoteTime > 0 || grounded) // If grounded or just left ground with coyoteTime remaining
+            {
+
+                rb.velocity = new Vector2(rb.velocity.x * 0.8f, jumpHeight); // Add upwards velocity
+                lastInput = 0; // Resets lastinput so another is required before instant jumping again
+                curCoyoteTime = 0; // Resets coyote jumping until next landing
+            }
+            else
+            {
+                lastInput = lastInputLimit; // Saves jump input if unable to currently jump (Jump buffering)
+            }
+        }
+    }
+
+    /// <summary> Method for a constant upwards boost </summary>
+    private void VerticalJetPack()
+    {
         if (Input.GetButton("AbilityOne") && !grounded && rb.velocity.y < 5 && fuelRemaining > 1 && canNextJet)
         {
             boostCurPower = Mathf.Clamp(boostCurPower + 0.08f, 0, 1);
@@ -332,7 +297,7 @@ public class PlayerMovement : MonoBehaviour
             }
             jetpackShaking = true;
 
-            
+
             updateJetFuel(-1.5f);
 
             jetTypeUsing = "JetVertical";
@@ -346,9 +311,42 @@ public class PlayerMovement : MonoBehaviour
             jetTypeUsing = "None";
             boostCurPower = 0;
         }
+    }
 
+    /// <summary> Method for a single upwards burst </summary>
+    private void VerticalBurstJetpack()
+    {
+        if (Input.GetButtonDown("AbilityOne") && Input.GetButton("Alternative") && fuelRemaining > 0 && canNextJet)
+        {
 
+            float burstPower = Mathf.Clamp(Mathf.CeilToInt(fuelRemaining / 33), 1, 3);
 
+            if (burstPower >= 3) { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.z); }
+            else if (burstPower == 2) { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.y); }
+            else { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.x); }
+
+            gameManager.GetComponent<GameManager>().StartCoroutine("FreezeFrame", burstPower / 2f);
+            cameraShaker.ShakeOnceStart();
+
+            updateJetFuel(-100);
+
+            rb.gravityScale = 8;
+
+            jetTypeUsing = "VBurst";
+            canNextJet = false;
+
+            animationAction = "JetBurst";
+        }
+        if (rb.velocity.y < 0 && jetTypeUsing == "VBurst")
+        {
+            canNextJet = true;
+            jetTypeUsing = "None";
+        }
+    }
+
+    /// <summary> Method for a constant horizontal boost </summary>
+    private void HorizontalJetpack()
+    {
         if (Input.GetButton("AbilityTwo") && canNextJet && fuelRemaining > 1 && !grounded)
         {
             boostCurPower += 0.1f;
@@ -376,32 +374,38 @@ public class PlayerMovement : MonoBehaviour
         {
             jetTypeUsing = "None";
         }
-
-
-
-
-        if (jetTypeUsing == "None")
-        {
-            animationAction = "None";
-        }
-        animationScript.AnimationChange(animationAction, grounded, (int)horizontalInput, rb.velocity.x, rb.velocity.y);
-        if(animationAction == "JetBurst")
-        {
-            animationAction = "None";
-        }
     }
 
-    private bool groundCheck() // Function for checking if the player is stood on top of an object in the 'Ground' layer
+    /// <summary> Method for a single Horizontal burst (Dash) </summary>
+    private void HorizontalBurstJetpack()
     {
-        bool grounded = Physics2D.BoxCast(transform.position, new Vector2(groundDetectionRangeX, 0.05f), 0, -transform.up, groundDetectionRangeY, Ground);
+        if (Input.GetButtonDown("AbilityTwo") && Input.GetButton("Alternative") && fuelRemaining > 0 && canNextJet)
+        {
 
-        if (!climbing && !grounded) // If not on determined to be 'grounded', then also check if on 'Special' layer when not climbing
-        { grounded = Physics2D.BoxCast(transform.position, new Vector2(groundDetectionRangeX, 0.05f), 0, -transform.up, groundDetectionRangeY, Special); }
-        
-        if (rb.velocity.y > 0.01f && grounded) // Revoke grounded if player has an upwards velocity, stops platform chain-jumping
-        { grounded = false; }
+            int direction = animationScript.flipped ? -1 : 1;
+            float burstPower = Mathf.Clamp(Mathf.CeilToInt(fuelRemaining / 33), 1, 3);
 
-        return grounded; // Returns the final determined bool
+            if (burstPower >= 3) { rb.velocity = new Vector2(horizontalBurstForce.z * direction, 0); }
+            else if (burstPower == 2) { rb.velocity = new Vector2(horizontalBurstForce.y * direction, 0); }
+            else { rb.velocity = new Vector2(horizontalBurstForce.x * direction, 0); }
+
+            gameManager.GetComponent<GameManager>().StartCoroutine("FreezeFrame", burstPower / 2f);
+            cameraShaker.ShakeOnceStart();
+
+            updateJetFuel(-100);
+
+            rb.gravityScale = 0;
+
+            jetTypeUsing = "HBurst";
+            canNextJet = false;
+
+            animationAction = "JetSideways";
+        }
+        else if (Mathf.Abs(rb.velocity.x) < 3 && jetTypeUsing == "HBurst")
+        {
+            canNextJet = true;
+            jetTypeUsing = "None";
+        }
     }
 
     private void updateJetFuel(float value)
@@ -420,8 +424,38 @@ public class PlayerMovement : MonoBehaviour
                 batteryRenderer.sprite = tripleChargeSprites[(int)Mathf.Round(fuelRemaining / 33.3f + 0.4f)];
                 break;
         }
+    }
+
+    private void ThrowBoomerang()
+    {
+        if (Input.GetButtonDown("AbilityThree"))
+        {
+            BoomerangScript newBoomerang = Instantiate(boomerang, transform.position, Quaternion.identity).GetComponent<BoomerangScript>();
+            newBoomerang.player = transform.gameObject;
+
+            int horizontalDirection = 0;
+            if (Input.GetAxisRaw("Vertical") == 0)
+            {
+                horizontalDirection = transform.GetComponent<PlayerAnimationScript>().flipped ? -1 : 1;
+            }
+            newBoomerang.direction = new Vector2(horizontalDirection, Input.GetAxisRaw("Vertical")).normalized;
+            print("epic");
+        }
+    }
 
 
+    /// <summary> Method for checking if the player is on the ground </summary>
+    private bool groundCheck() 
+    {
+        bool grounded = Physics2D.BoxCast(transform.position, new Vector2(groundDetectionRangeX, 0.05f), 0, -transform.up, groundDetectionRangeY, Ground);
+
+        if (!climbing && !grounded) // If not on determined to be 'grounded', then also check if on 'Special' layer when not climbing
+        { grounded = Physics2D.BoxCast(transform.position, new Vector2(groundDetectionRangeX, 0.05f), 0, -transform.up, groundDetectionRangeY, Special); }
+        
+        if (rb.velocity.y > 0.01f && grounded) // Revoke grounded if player has an upwards velocity, stops platform chain-jumping
+        { grounded = false; }
+
+        return grounded; // Returns the final determined bool
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -457,7 +491,6 @@ public class PlayerMovement : MonoBehaviour
     {
         if (this.transform.parent != null && !climbing) // If exited an object while not climbing and is a child of an object
         {
-
             this.transform.SetParent(null);
 
             if (collision.transform.TryGetComponent(out MovingObject movingObject) && !grounded)
@@ -508,6 +541,7 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    /// <summary> Adds the last 10 velocities from a moving object to a list </summary>
     private void PreserveVelocities(MovingObject movingObject) // Stores the last n (10) velocity values from the stood on moving object
     {
         exForceStep++; // Iterate to next 'mostExtremeForces' value for replacement
@@ -521,10 +555,15 @@ public class PlayerMovement : MonoBehaviour
         mostExtremeForces[exForceStep] = exVelocity; // Replaces the old value with the newly created vector3
     }
 
+    /// <summary> Begins all the effects of the player dying </summary>
     private void KillPlayer() // Kill player 
     {
         animationScript.AnimationChange("Death", true, 0, 0, 0); // Play death animation, other values no longer matter
         disableInput = true; // Remove the player's ability to use inputs
+        gameManager.GetComponent<GameManager>().StartCoroutine("FreezeFrame", 3);
+        Instantiate(explosionPrefab, transform.position, Quaternion.identity);
+
+        rb.velocity = Vector3.zero;
         transition.DiedTransition(); // Order the transition object to play the fade out effect and then reload the scene
     }
 }

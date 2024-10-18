@@ -13,17 +13,20 @@ public class CanvasTransition : MonoBehaviour
     public CinemachineBrain cinemachineBrain;
 
     [Header("Transition Speeds")]
-    public float scrollRevealSpeed = 4500; // Scroll Transitions
-    public float scrollHideSpeed = 4500;
-    public float opacityIncreaseRate = 0.08f; // Fade (Death) Transitions
-    public float opacityDecreaseRate = 0.08f;
+    [Range(20, 300)] public float scrollRevealSpeed = 100; // Scroll Transitions
+    [Range(20, 300)] public float scrollHideSpeed = 100;
+    [Range(0.01f, 1)] public float opacityIncreaseRate = 0.08f; // Fade (Death) Transitions
+    [Range(0.01f, 1)] public float opacityDecreaseRate = 0.08f;
 
     private float cinemachineNormalSpeed; // Variable for saving cinemachine scroll duration value
     private string currentState = "Revive";
     private string nextScene = "Unknown";
 
 
-    public float endDestination = 1000; // Temporary Solution
+    private float restartBuffer = 35; // Time after death before screen fades out, decided to hard-code this with the value of 35
+
+    private int nextSceneDoor;
+    private Vector2 outTargetPosition;
 
 
     private void Start() // Called when first active
@@ -31,25 +34,53 @@ public class CanvasTransition : MonoBehaviour
         gameManager = GameObject.FindGameObjectWithTag("GameManager"); // Gets the GameManager object which handles the scene loading after the transition is complete
         blockSprite = transform.GetComponent<Image>(); // Object that covers the screen and will scroll/fade in/out
         player = GameObject.FindGameObjectWithTag("Player"); // Get the player object so that can reactivate the movement when the opening transition is finished
-
         cinemachineNormalSpeed = cinemachineBrain.m_DefaultBlend.m_Time; // Save the default scroll speed for the camera
         cinemachineBrain.m_DefaultBlend.m_Time = 0.01f;  // Sets the scroll duration to be very low so that the camera can scroll to the player when a scene is loaded
     }
 
+
+
+
+
+
+
+
+
+
+
     /// <summary>Scrolling screen transition that will reveal game view</summary>
-    public void RevealTransition()
+    public void RevealTransition(float direction)
     {
-        currentState = "Uncover"; // Will be used later in fixedUpdate to create the scrolling transition
+        currentState = "Uncover";  // Will be used later in fixedUpdate to create the scrolling transition
+
+        transform.Rotate(0, 0, direction);
+        outTargetPosition = new Vector2((-transform.right.x * Screen.width * 2) + Screen.width / 2, (-transform.right.y * Screen.height * 2) + Screen.height / 2);
+
     }
 
     /// <summary>Scrolling screen transition that will block game view</summary>
-    public void CoverTransition(string requestedScene)
+    public void CoverTransition(string requestedScene, int targetDoorID, float direction)
     {
-        transform.position = new Vector2(transform.position.x, endDestination + Screen.height);
+        currentState = "Cover";  // Will be used later in fixedUpdate to create the scrolling transition
+
+        transform.rotation = Quaternion.Euler(0,0,0); // Reset rotation from last transition
+        transform.Rotate(0, 0, direction);
+        transform.position = new Vector2((transform.right.x * Screen.width * 2) + Screen.width / 2, (transform.right.y * Screen.height * 2) + Screen.height / 2);
+
+        blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 1); // Reset Opacity to be fully opaque
+
         nextScene = requestedScene;
-        currentState = "Cover";
-       
+        nextSceneDoor = targetDoorID;
+
     }
+
+
+
+
+
+
+
+
 
     /// <summary> Fade-in screen transition that will block game view</summary>
     public void DiedTransition()
@@ -72,25 +103,28 @@ public class CanvasTransition : MonoBehaviour
     {
         switch (currentState)
         {
-            case "Uncover": // If you are reading this, then I forgot to do something ######################################################
-                if (transform.position.y > -Screen.height / 2 - endDestination)
+            case "Uncover": 
+                if (Mathf.Abs(transform.position.x - outTargetPosition.x) > 1 || Mathf.Abs(transform.position.y - outTargetPosition.y) > 1)
                 {
-                    transform.position = new Vector2(transform.position.x, transform.position.y - scrollRevealSpeed * Time.deltaTime);
+                    transform.position = Vector2.MoveTowards(transform.position, outTargetPosition, scrollHideSpeed);
                 }
                 else
                 {
                     cinemachineBrain.m_DefaultBlend.m_Time = cinemachineNormalSpeed;
                     player.GetComponent<PlayerMovement>().disableInput = false;
+                    currentState = "FinishedTransition";
                 }
                 break;
             case "Cover":
-                if (transform.position.y > Screen.height / 2)
+                if (Mathf.Abs(transform.position.x - Screen.width / 2) > 1 || Mathf.Abs(transform.position.y - Screen.height / 2) > 1)
                 {
-                    transform.position = new Vector2(transform.position.x, transform.position.y - scrollHideSpeed * Time.deltaTime);
+                    transform.position = Vector2.MoveTowards(transform.position, new Vector2(Screen.width/2, Screen.height/2), scrollHideSpeed);
                 }
                 else
                 {
-                    gameManager.GetComponent<GameManager>().LoadScene("skibidi");
+                    gameManager.GetComponent<GameManager>().targetDoorID = nextSceneDoor;
+                    gameManager.GetComponent<GameManager>().scrollDirection = transform.rotation.eulerAngles.z;
+                    gameManager.GetComponent<GameManager>().LoadScene(nextScene);
                     Destroy(this); // Destroy this script off the object so that it doesn't try to load the next scene multiple times.
                 }
                 break;
@@ -103,18 +137,30 @@ public class CanvasTransition : MonoBehaviour
                 {
                     cinemachineBrain.m_DefaultBlend.m_Time = cinemachineNormalSpeed; // Reset the camera speed to normal
                     player.GetComponent<PlayerMovement>().disableInput = false; // Renable the player's ability to move
+                    currentState = "FinishedTransition";
                 }
                 break;
             case "Die":
-                if (blockSprite.color.a < 1)  // Keep increasing the opacity of the blocking object until no longer visible
+                restartBuffer--;
+                if (restartBuffer == 30) 
                 {
-                    blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, blockSprite.color.a + opacityIncreaseRate); // Reduce Opacity by set value
+                    player.transform.GetChild(0).GetComponent<SpriteRenderer>().enabled = false;
+                    player.transform.GetChild(1).GetComponent<SpriteRenderer>().enabled = false; 
                 }
-                else
+                if (restartBuffer < 0)
                 {
-                    gameManager.GetComponent<GameManager>().ReloadScene();
-                    Destroy(this); // Destroy this script off the object so that it doesn't try to load the next scene multiple times.
+                    if (blockSprite.color.a < 1)  // Keep increasing the opacity of the blocking object until no longer visible
+                    {
+                        blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, blockSprite.color.a + opacityIncreaseRate); // Reduce Opacity by set value
+                    }
+                    else
+                    {
+                        gameManager.GetComponent<GameManager>().ReloadScene();
+                        Destroy(this); // Destroy this script off the object so that it doesn't try to load the next scene multiple times.
+                    }
                 }
+                break;
+            case "FinishedTransition":
                 break;
             default:
                 Debug.LogError("Unknown Canvas State: " + currentState); // Debugging Message

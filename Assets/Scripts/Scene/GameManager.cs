@@ -5,9 +5,21 @@ using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
+    [Header("Player Progress")]
+    public int chargesObtained = 1;
+    public bool jet1Obtained = false;
+    public bool jet2Obtained = false;
+    public bool jet3Obtained = false;
+    public bool jet4Obtained = false;
+    public bool boomerangObtained = false;
+
     [Header("Respawn Information")]
     public Vector2 respawnPosition; // The last position the player activated a checkpoint at
 
+    [Header("Scene Change Information")]
+    [HideInInspector] public int targetDoorID = -1;
+    public float scrollDirection = 0;
+    private CanvasTransition canvasTransition;
 
     void Awake() // Important that this activates before any other object, otherwise other objects may fail to find any GameManager
     {
@@ -26,11 +38,28 @@ public class GameManager : MonoBehaviour
 
     private void OnLevelWasLoaded(int level)
     {
-        if (respawnPosition != new Vector2(0, 0)) // If respawnPosition has not yet been changed
+        if (targetDoorID != -1)
         {
+            canvasTransition = GameObject.FindGameObjectWithTag("Transition").GetComponent<CanvasTransition>();
+            canvasTransition.RevealTransition(scrollDirection);
 
+            foreach (GameObject entrance in GameObject.FindGameObjectsWithTag("Entrance"))
+            {
+                if (entrance.GetComponent<NextAreaDoor>().doorID == targetDoorID)
+                {
+                    GameObject.FindGameObjectWithTag("Player").transform.position = entrance.transform.GetChild(0).position;
+                    break;
+                }
+            }
+
+            targetDoorID = -1;
+            return;
+        }
+        else if (respawnPosition != new Vector2(0, 0)) // If respawnPosition has not yet been changed, Only applicable at the start of the game
+        {
             GameObject.FindGameObjectWithTag("Player").transform.position = respawnPosition; // Relocate the player to the last saved checkpoint
         }
+
     }
 
     /// <summary> Load a scene through it's name</summary>
@@ -45,4 +74,13 @@ public class GameManager : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().name, LoadSceneMode.Single); // Reload the currently active scene
     }
 
+    /// <summary> Briefly freeze the game </summary>
+    public IEnumerator FreezeFrame(float duration)
+    {
+        yield return new WaitForSeconds(0.005f);
+
+        Time.timeScale = 0.001f;
+        yield return new WaitForSeconds(0.0001f * duration);
+        Time.timeScale = 1;
+    }
 }

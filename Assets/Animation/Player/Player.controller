@@ -27,7 +27,7 @@ AnimatorStateTransition:
     m_ConditionEvent: JetFail
     m_EventTreshold: 0
   - m_ConditionMode: 2
-    m_ConditionEvent: Died
+    m_ConditionEvent: JetFail
     m_EventTreshold: 0
   m_DstStateMachine: {fileID: 0}
   m_DstState: {fileID: -178233576007062466}
@@ -878,7 +878,7 @@ AnimatorState:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Jet Sideways
-  m_Speed: 1
+  m_Speed: 2
   m_CycleOffset: 0
   m_Transitions: []
   m_StateMachineBehaviours: []

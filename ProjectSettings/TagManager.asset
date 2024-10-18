@@ -7,6 +7,8 @@ TagManager:
   - Climbable
   - GameManager
   - Hazard
+  - Transition
+  - Entrance
   layers:
   - Default
   - TransparentFX

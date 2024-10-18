@@ -52,6 +52,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   cameraShaker: {fileID: 0}
   transition: {fileID: 0}
+  explosionPrefab: {fileID: 2169704281005316898, guid: 7779398c44ed3b54ba429521e0ee4ff9, type: 3}
   Ground:
     serializedVersion: 2
     m_Bits: 320
