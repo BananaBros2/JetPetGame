@@ -2,74 +2,110 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
-public class PlayerMovement : MonoBehaviour // This is a very movement-focused game so a lot of logic in here
+public class PlayerMovement : MonoBehaviour // This is a very movement-focused game so a lot of the logic is in here
 {
-    private Rigidbody2D rb;
+    [Header("References")]
+    public GameObject boomerang;
+    public GameObject explosionPrefab;
     public CameraVibration cameraShaker;
     public CanvasTransition transition;
-    private GameObject gameManager;
-    public GameObject explosionPrefab;
+    private Rigidbody2D rb;
+    private PlayerAnimationScript animationScript;
+    private SpriteRenderer batteryRenderer;
+    private SpriteRenderer boomerangRenderer;
+    private GameManager gameManager;
 
+
+    [Header("Layer Detection")]
     public LayerMask Ground;
     public LayerMask Special;
-
-    public bool disableInput = true;
-
     [Range(0.1f, 0.99f)] public float groundDetectionRangeX = 0.5f; // Values need to be hard-coded more-so but good for debugging
     [Range(0.1f, 0.99f)] public float groundDetectionRangeY = 0.53f; // Same as above
-
     private bool grounded;
-    private int curCoyoteTime;
-    [Range(1, 50)] public int coyoteTime = 8;
+    
 
-    private int lastInput = 0;
-    [Range(1, 50)] public int lastInputLimit = 5;
-    public float jumpHeight = 5;
+    [Header("Movement")]
     public float moveSpeed = 30;
+    public float jumpHeight = 5;
+    public float regularGravity = 1.75f;
+    public float unheldJumpGravity = 8;
+    public float fallingGravity = 3;
+    public float fastFallGravity = 5;
+
+
+    [Header("Climbing")]
+    private bool climbing;
     public float climbingSpeed = 3;
+    public float snapToLadderSpeed = 1;
+    [Range(1, 10)] public int ladderDistDivision = 4;
+    public float timeBeforeNextLadder = 0.5f;
+    private float secondsBetweenLadders;
+
+
+    [Header("Jetpack")]
+    public float fuelRemaining = 100;
+    public float fuelRechargeRate = 1; 
     private float boostCurPower = 0;
     private bool jetpackShaking;
+    public Vector3 verticalBurstForce = new Vector3(25, 30, 34);
+    public Vector3 horizontalBurstForce = new Vector3(15, 20, 25);
+    private bool canNextJet = true;
+    private string jetTypeUsing = "None";
+    private float horizontalJetSpeedMultiplier = 1.25f;
 
-    [Range(1, 10)] public int ladderDistDivision = 4;
-    private bool climbing;
-    public float timeBeforeNextLadder = 0.2f;
-    private float timeBetweenLadders;
 
-    public int chargesObtained = 1;
-    public float fuelRemaining = 100;
-
-    private SpriteRenderer batteryRenderer;
+    [Header("Battery Sprites")]
     public List<Sprite> singleChargeSprites = new List<Sprite>();
     public List<Sprite> doubleChargeSprites = new List<Sprite>();
     public List<Sprite> tripleChargeSprites = new List<Sprite>();
 
-    public GameObject boomerang;
 
-    private PlayerAnimationScript animationScript;
+    [Header("Boomerang")]
+    public bool boomerangAvailable = true;
+
+    [Header("Forgiveness")]
+    [Range(1, 50)] public int coyoteTime = 8;
+    private int curCoyoteTime;
+    [Range(1, 50)] public int lastInputLimit = 5;
+    private int lastInput = 0;
+    public List<Vector3> mostExtremeForces;
+    private int exForceStep = -1;
+
+
+    [Header("Items Collected")]
+    public bool unlockAllItems;
+    public int chargesObtained;
+    public bool vThrustObtained;
+    public bool hThrustObtained;
+    public bool vBurstObtained;
+    public bool hBurstObtained;
+    public bool boomerangObtained;
+
+
+    [Header("Miscellaneous")]
+    public bool disableInput = true;
     private string animationAction;
 
-    public List<Vector3> mostExtremeForces;
-    int exForceStep = -1;
 
-    private bool canNextJet = true;
-    public Vector3 verticalBurstForce = new Vector3(25, 30, 34);
-    public Vector3 horizontalBurstForce = new Vector3(15, 20, 25);
-    private int horizontalBurstLeft;
-    private string jetTypeUsing = "None";
-    private float horizontalJetSpeedMultiplier = 1.25f;
 
     private void Awake() // Called once when first existent 
     {
         rb = GetComponent<Rigidbody2D>(); // Get and set rb as the rigidbody2d component
         batteryRenderer = transform.GetChild(0).GetComponent<SpriteRenderer>(); // Sprite Renderer for jetpack battery
+        boomerangRenderer = transform.GetChild(3).GetComponent<SpriteRenderer>(); // Sprite Renderer for boomerang
         animationScript = GetComponent<PlayerAnimationScript>(); // Animator on character sprite
     }
 
     private void Start()
     {
-        gameManager = GameObject.FindGameObjectWithTag("GameManager"); // Get the GameManager
+        gameManager = GameObject.FindGameObjectWithTag("GameManager").GetComponent<GameManager>(); // Get the GameManager
+        chargesObtained = gameManager.chargesObtained; // Saved player stats from game manager, able to transfer player progress through scene loads
+        vThrustObtained = gameManager.vThrustObtained;
+        hThrustObtained = gameManager.hThrustObtained;
+        vBurstObtained = gameManager.vBurstObtained;
+        hBurstObtained = gameManager.hBurstObtained;
+        boomerangObtained = gameManager.boomerangObtained;
     }
 
     void Update() // Update is called once per frame
@@ -89,7 +125,7 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
 
             if (fuelRemaining < 100 * chargesObtained) // Only refuels up to current maximum
             {
-                updateJetFuel(1 * chargesObtained);
+                updateJetFuel(fuelRechargeRate * chargesObtained);
             }
 
             curCoyoteTime = coyoteTime; // CoyoteTimer reset
@@ -103,10 +139,10 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
                 this.transform.parent.GetComponent<LadderValues>().ActivatePlatform(); // Removes platform stopping you from falling and reenables top platform
                 this.transform.SetParent(null); // Detach from the ladder
                 climbing = false;
-                timeBetweenLadders = timeBeforeNextLadder; // Stop the player from accidentally grabbing the same ladder after leaving it
+                secondsBetweenLadders = timeBeforeNextLadder; // Stop the player from accidentally grabbing the same ladder after leaving it
                 return;
             }
-            else if (!climbing && Input.GetAxisRaw("Vertical") < 0 && timeBetweenLadders < 0) // If on top platform and down is pressed
+            else if (!climbing && Input.GetAxisRaw("Vertical") < 0 && secondsBetweenLadders < 0) // If on top platform and down is pressed
             {
                 climbing = true;
                 this.transform.SetParent(specialGrounded.transform.parent); // Attach to ladder from top
@@ -120,114 +156,114 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
         VerticalBurstJetpack(); // Single Vertical boost which requires a two button to be pressed
         HorizontalBurstJetpack(); // Single Horizontal boost which requires a two button to be pressed
 
-        ThrowBoomerang(); // Method for creating the boomerang
+        if (boomerangAvailable) { ThrowBoomerang(); } // Method for creating the boomerang
+        else { boomerangRenderer.color = new Color(1, 1, 1, 0); }
+
     }
-
-
-
-
 
     private void FixedUpdate()
     {
         if (disableInput)
         {
-            rb.velocity = new Vector2(rb.velocity.x * 0.7f, rb.velocity.y);
+            rb.velocity = new Vector2(rb.velocity.x * 0.7f, rb.velocity.y); // Stop player from sliding when input is disabled
             return;
         }
 
-        curCoyoteTime--;
+        curCoyoteTime--; // Countdown timers to various aspects
         lastInput--;
-        timeBetweenLadders -= Time.fixedDeltaTime;
-        horizontalBurstLeft--;
+        secondsBetweenLadders -= Time.fixedDeltaTime; // Minor inconsistency, but both fixedDeltaTime timer and fixedframe integer timers work
 
-        if (jetpackShaking)
+
+        if (jetpackShaking) 
         {
             if (!(Input.GetButton("AbilityOne") && !grounded && rb.velocity.y < 5 && fuelRemaining > 0))
             {
-                cameraShaker.ConstantShakeCancel();
+                cameraShaker.ConstantShakeCancel(); // Turns off shake if no longer applicable
                 jetpackShaking = false;
             }
         }
 
-        if (climbing && transform.parent != null)
+        if (climbing && transform.parent != null) // CLIMBING
         {
-            animationScript.AnimationChange("Climb", grounded, 0, rb.velocity.x, rb.velocity.y);
+            animationScript.AnimationChange("Climb", grounded, 0, rb.velocity.x, rb.velocity.y); // Climbing Animation
+            rb.gravityScale = 0; // Don't apply gravity whilst on ladder
 
-            transform.position = Vector3.MoveTowards(transform.position, new Vector2(transform.parent.position.x, transform.position.y), 5 * Time.deltaTime);
-            rb.gravityScale = 0;
-            if (Input.GetButton("Jump"))
+            // Snap to ladder middle
+            transform.position = Vector3.MoveTowards(transform.position, new Vector2(transform.parent.position.x, transform.position.y), snapToLadderSpeed);
+
+            if (Input.GetButton("Jump")) // If attempting to jump off ladder
             {
                 this.transform.parent.GetComponent<LadderValues>().ActivatePlatform();
-                this.transform.SetParent(null);
+                this.transform.SetParent(null); // Detach from ladder
                 climbing = false;
-                timeBetweenLadders = 0.5f;
+                secondsBetweenLadders = timeBeforeNextLadder; // Time until another ladder can be grabbed
 
 
                 rb.velocity = new Vector2(rb.velocity.x * 0.8f, jumpHeight);
-                return;
+                return; // Don't continue ladder abilities
             }
 
+            // LADDER MOVEMENT ----#
             rb.velocity = new Vector2(0, climbingSpeed * Input.GetAxisRaw("Vertical"));
+            // LADDER MOVEMENT ----#
 
-            if (grounded && Input.GetAxisRaw("Vertical") < 0)
+            if (grounded && Input.GetAxisRaw("Vertical") < 0) // If touching ground and continues to press down
             {
-                this.transform.parent.GetComponent<LadderValues>().ActivatePlatform();
-                this.transform.SetParent(null);
+                this.transform.parent.GetComponent<LadderValues>().ActivatePlatform(); 
+                this.transform.SetParent(null); // Detach from ladder
                 climbing = false;
-                timeBetweenLadders = 0.5f;
-                return;
+                secondsBetweenLadders = timeBeforeNextLadder; // Time until another ladder can be grabbed
             }
 
-            return;
+            return; // Don't continue to non-ladder related code
         }
 
-        if (canNextJet)
+        if (canNextJet) // If not using any jet type which often change gravity to get better trajectories
         {
-            if (Input.GetAxis("Vertical") < 0 && rb.velocity.y < 4 && !grounded)
+            if (Input.GetAxis("Vertical") < 0 && rb.velocity.y < 4 && !grounded) // If player is pressing down while jumping (Fast falling)
             {
-                rb.gravityScale = 5;
+                rb.gravityScale = fastFallGravity;
             }
-            else if (rb.velocity.y < 0 && rb.velocity.y < 2 && !grounded)
+            else if (rb.velocity.y < 0 && !grounded) // Increase gravity when falling and not grounded
             {
-                rb.gravityScale = 3;
+                rb.gravityScale = fallingGravity;
             }
-            else if (!Input.GetButton("Jump") && rb.velocity.y > 4)
+            else if (!Input.GetButton("Jump") && rb.velocity.y > 4) // Apply larger gravity if player is not pressing jump to get shorter hops
             {
-                rb.gravityScale = 8;
+                rb.gravityScale = unheldJumpGravity;
             }
-            else
+            else // Regular starting gravity
             {
-                rb.gravityScale = 1.75f;
+                rb.gravityScale = regularGravity;
             }
         }
 
 
         float horizontalInput = Input.GetAxisRaw("Horizontal");
 
-        if (jetTypeUsing == "HBurst")
+        if (jetTypeUsing == "HBurst") // Decelleration when using the Horizontal jet burst
         {
             rb.velocity = new Vector2(rb.velocity.x * 0.85f, rb.velocity.y);
         }
-        else if (jetTypeUsing == "JetHorizontal")
+        else if (jetTypeUsing == "JetHorizontal") // Movement and Decelleration when using the horizontal jet, will move faster than normal speed
         {
-            rb.AddForce(new Vector2(horizontalInput * moveSpeed * horizontalJetSpeedMultiplier, 0));
+            rb.AddForce(new Vector2(horizontalInput * moveSpeed * horizontalJetSpeedMultiplier, 0)); 
             rb.velocity = new Vector2(rb.velocity.x * 0.85f, rb.velocity.y);
         }
-        else if (grounded)
+        else if (grounded) // Movement and Decelleration when grounded
         {
             rb.AddForce(new Vector2(horizontalInput * moveSpeed, 0));
             rb.velocity = new Vector2(rb.velocity.x * 0.8f, rb.velocity.y);
         }
-        else if (Mathf.Abs(rb.velocity.x) > 6 && horizontalInput < 0)
+        else if (Mathf.Abs(rb.velocity.x) > 6 && horizontalInput < 0) // Movement and Decelleration when going normal speed in the air
         {
             rb.velocity = new Vector2(rb.velocity.x * 0.93f, rb.velocity.y);
         }
-        else if (horizontalInput == 0)
+        else if (horizontalInput == 0) // Decelleration when not touching the horizontal movement keys
         {
-            rb.AddForce(new Vector2(horizontalInput * moveSpeed, 0));
             rb.velocity = new Vector2(rb.velocity.x * 0.93f, rb.velocity.y);
         }
-        else if (Mathf.Abs(rb.velocity.x) < 6)
+        else if (Mathf.Abs(rb.velocity.x) < 6) // Movement and Decelleration when going faster than normal
         {
             rb.AddForce(new Vector2(horizontalInput * moveSpeed, 0));
             rb.velocity = new Vector2(rb.velocity.x * 0.8f, rb.velocity.y);
@@ -238,7 +274,7 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
         HorizontalJetpack(); // Horizontal boost which requires constant input
 
 
-        if (jetTypeUsing == "None")
+        if (jetTypeUsing == "None") // v Animation Value conversion code v
         {
             animationAction = "None";
         }
@@ -283,6 +319,8 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
     /// <summary> Method for a constant upwards boost </summary>
     private void VerticalJetPack()
     {
+        if (!(vThrustObtained || unlockAllItems)) { return; }
+
         if (Input.GetButton("AbilityOne") && !grounded && rb.velocity.y < 5 && fuelRemaining > 1 && canNextJet)
         {
             boostCurPower = Mathf.Clamp(boostCurPower + 0.08f, 0, 1);
@@ -316,6 +354,8 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
     /// <summary> Method for a single upwards burst </summary>
     private void VerticalBurstJetpack()
     {
+        if (!(vBurstObtained || unlockAllItems)) { return; }
+
         if (Input.GetButtonDown("AbilityOne") && Input.GetButton("Alternative") && fuelRemaining > 0 && canNextJet)
         {
 
@@ -325,8 +365,8 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
             else if (burstPower == 2) { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.y); }
             else { rb.velocity = new Vector2(rb.velocity.x, verticalBurstForce.x); }
 
-            gameManager.GetComponent<GameManager>().StartCoroutine("FreezeFrame", burstPower / 2f);
-            cameraShaker.ShakeOnceStart();
+            gameManager.GetComponent<GameManager>().StartCoroutine("FreezeFrame", burstPower / 3f);
+            cameraShaker.ShakeOnceStart(burstPower * 0.05f);
 
             updateJetFuel(-100);
 
@@ -347,11 +387,13 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
     /// <summary> Method for a constant horizontal boost </summary>
     private void HorizontalJetpack()
     {
+        if (!(hThrustObtained || unlockAllItems)) { return; }
+
         if (Input.GetButton("AbilityTwo") && canNextJet && fuelRemaining > 1 && !grounded)
         {
             boostCurPower += 0.1f;
             rb.gravityScale = Mathf.Max(3 - boostCurPower, 0);
-            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.8f);
+            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.7f);
 
             animationAction = "JetHorizontal";
 
@@ -379,6 +421,8 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
     /// <summary> Method for a single Horizontal burst (Dash) </summary>
     private void HorizontalBurstJetpack()
     {
+        if (!(hBurstObtained || unlockAllItems)) { return; }
+
         if (Input.GetButtonDown("AbilityTwo") && Input.GetButton("Alternative") && fuelRemaining > 0 && canNextJet)
         {
 
@@ -389,8 +433,8 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
             else if (burstPower == 2) { rb.velocity = new Vector2(horizontalBurstForce.y * direction, 0); }
             else { rb.velocity = new Vector2(horizontalBurstForce.x * direction, 0); }
 
-            gameManager.GetComponent<GameManager>().StartCoroutine("FreezeFrame", burstPower / 2f);
-            cameraShaker.ShakeOnceStart();
+            gameManager.GetComponent<GameManager>().StartCoroutine("FreezeFrame", burstPower / 3f);
+            cameraShaker.ShakeOnceStart(burstPower * 0.05f);
 
             updateJetFuel(-100);
 
@@ -428,6 +472,13 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
 
     private void ThrowBoomerang()
     {
+        if (!(boomerangObtained || unlockAllItems)) 
+        {
+            return; 
+        }
+
+        boomerangRenderer.color = new Color(1, 1, 1, 1); // Make boomerang icon above head visible
+
         if (Input.GetButtonDown("AbilityThree"))
         {
             BoomerangScript newBoomerang = Instantiate(boomerang, transform.position, Quaternion.identity).GetComponent<BoomerangScript>();
@@ -438,8 +489,10 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
             {
                 horizontalDirection = transform.GetComponent<PlayerAnimationScript>().flipped ? -1 : 1;
             }
+
             newBoomerang.direction = new Vector2(horizontalDirection, Input.GetAxisRaw("Vertical")).normalized;
-            print("epic");
+
+            boomerangAvailable = false;
         }
     }
 
@@ -466,26 +519,25 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
         }
         if (collision.transform.TryGetComponent<FallingPlatform>(out FallingPlatform platform) && collision.enabled)
         {
-            platform.AttemptCollapse();
+            platform.AttemptCollapse(); // Initiate falling platforming
         }
     }
 
     private void OnCollisionStay2D(Collision2D collision)
     {
-        if(collision.transform.TryGetComponent(out MovingObject movingObject) && groundCheck() && collision.enabled)
+        if(collision.transform.TryGetComponent(out MovingObject movingObject) && groundCheck() && collision.enabled) 
         {
             this.transform.SetParent(collision.transform);
 
-            PreserveVelocities(movingObject);
+            PreserveVelocities(movingObject); // Platform velocity buffering
 
             if (collision.transform.TryGetComponent<FallingPlatform>(out FallingPlatform platform))
             {
-                platform.AttemptCollapse();
+                platform.AttemptCollapse(); // Initiate falling platforming
             }
 
         }
     }
-
 
     private void OnCollisionExit2D(Collision2D collision)
     {
@@ -495,18 +547,18 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
 
             if (collision.transform.TryGetComponent(out MovingObject movingObject) && !grounded)
             {
-                PreserveVelocities(movingObject); // In case player never 'stays' on the platform for more than 1 frame
+                PreserveVelocities(movingObject); // In case player never 'onCollisionStays2D' on the platform for more than 1 frame
                 
-                Vector3 mostExtremeForce = Vector3.zero;
+                Vector3 mostExtremeForce = Vector3.zero; 
                 foreach (Vector3 force in mostExtremeForces)
                 {
-                    if (force.z > mostExtremeForce.z)
+                    if (force.z > mostExtremeForce.z) // Iterate through list and find vector with the highest score
                     { mostExtremeForce = force; }
                 }
 
-                for (int i = 0; i < mostExtremeForces.Count; i++) { mostExtremeForces[i] = Vector3.zero; }
-                exForceStep = -1;
-                rb.velocity = new Vector2(rb.velocity.x + mostExtremeForce.x, rb.velocity.y + mostExtremeForce.y);
+                for (int i = 0; i < mostExtremeForces.Count; i++) { mostExtremeForces[i] = Vector3.zero; } // Reset all list values to zero
+                exForceStep = -1; // Not technically required, but returns index to a point that will start overwriting at the first value again
+                rb.velocity = new Vector2(rb.velocity.x + mostExtremeForce.x, rb.velocity.y + mostExtremeForce.y); // Apply the final force
             }
         }
     }
@@ -517,11 +569,52 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
         {
             KillPlayer();
         }
+        if(collision.CompareTag("Item") && !disableInput)
+        {
+            collision.transform.parent = transform;
+            collision.transform.localPosition = Vector2.up;
+            disableInput = true;
+            animationScript.AnimationChange("Pickup", grounded, 0, 0, 0);
+            StartCoroutine("PickupItem", collision.gameObject);
+
+            gameManager.itemsCollected.Add(collision.GetComponent<UpgradeItem>().itemID);
+
+            switch (collision.GetComponent<UpgradeItem>().upgradeType) // Update obtained list
+            {
+                case "Charge":
+                    chargesObtained++;
+                    gameManager.chargesObtained++;
+                    break;
+                case "VThrust":
+                    vThrustObtained = true;
+                    gameManager.vThrustObtained = true;
+                    break;
+                case "HThrust":
+                    hThrustObtained = true;
+                    gameManager.hThrustObtained = true;
+                    break;
+                case "VBurst":
+                    vBurstObtained = true;
+                    gameManager.vBurstObtained = true;
+                    break;
+                case "HBurst":
+                    hBurstObtained = true;
+                    gameManager.hBurstObtained = true;
+                    break;
+                case "Boomerang":
+                    boomerangObtained = true;
+                    gameManager.boomerangObtained = true;
+                    break;
+                default:
+                    Debug.LogError("Unknown item: " + collision.GetComponent<UpgradeItem>().upgradeType);
+                    break;
+            }
+        }
     }
 
     private void OnTriggerStay2D(Collider2D collision)
     {
-        if (collision.CompareTag("Climbable") && Input.GetAxisRaw("Vertical") == 1 && timeBetweenLadders < 0) // Checks if applicable to climb a ladder
+        if (collision.CompareTag("Climbable") && Input.GetAxisRaw("Vertical") == 1 && secondsBetweenLadders < 0) // Checks if applicable to climb a ladder
         {
             climbing = true;
             this.transform.SetParent(collision.transform); // Childs the player to the ladder
@@ -539,6 +632,14 @@ public class PlayerMovement : MonoBehaviour // This is a very movement-focused g
             this.transform.SetParent(null); // Unparents the player from the ladder
             climbing = false;
         }
+    }
+
+
+    public IEnumerator PickupItem(GameObject item)
+    {
+        yield return new WaitForSeconds(1.5f);
+        Destroy(item);
+        disableInput = false;
     }
 
     /// <summary> Adds the last 10 velocities from a moving object to a list </summary>

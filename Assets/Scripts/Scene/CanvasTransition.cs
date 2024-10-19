@@ -18,17 +18,17 @@ public class CanvasTransition : MonoBehaviour
     [Range(0.01f, 1)] public float opacityIncreaseRate = 0.08f; // Fade (Death) Transitions
     [Range(0.01f, 1)] public float opacityDecreaseRate = 0.08f;
 
+    [Header("Stored Status Values")]
     private float cinemachineNormalSpeed; // Variable for saving cinemachine scroll duration value
-    private string currentState = "Revive";
-    private string nextScene = "Unknown";
+    private string currentState = "Revive"; // Defaults to revive where if this isn't changed it can be presume player died to trigger reload
+    private Vector2 outTargetPosition; // Stores position for "Uncover"
 
+    private string nextScene = "Unknown"; // Given by the NextAreaDoor script
+    private int nextSceneDoor;
 
     private float restartBuffer = 35; // Time after death before screen fades out, decided to hard-code this with the value of 35
 
-    private int nextSceneDoor;
-    private Vector2 outTargetPosition;
-
-
+    
     private void Start() // Called when first active
     {
         gameManager = GameObject.FindGameObjectWithTag("GameManager"); // Gets the GameManager object which handles the scene loading after the transition is complete
@@ -39,92 +39,80 @@ public class CanvasTransition : MonoBehaviour
     }
 
 
+    /// <summary>Scrolling screen transition that will block game view</summary>
+    public void CoverTransition(string requestedScene, int targetDoorID, float direction)
+    {
+        currentState = "Cover";  // Will be used later in fixedUpdate to create the scrolling transition
+        transform.rotation = Quaternion.Euler(0,0,0); // Reset any rotation from the uncover transition when previously loading the scene
+        transform.Rotate(0, 0, direction);
+        
+        // Start off screen in the direction of transform.right which was just changed by the rotation
+        transform.position = new Vector2((transform.right.x * Screen.width * 2) + Screen.width / 2, (transform.right.y * Screen.height * 2) + Screen.height / 2);
 
+        blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 1); // Reset Opacity to be fully opaque
 
+        nextScene = requestedScene; // Save requested scene values
+        nextSceneDoor = targetDoorID;
 
-
-
-
-
-
+    }
 
     /// <summary>Scrolling screen transition that will reveal game view</summary>
     public void RevealTransition(float direction)
     {
         currentState = "Uncover";  // Will be used later in fixedUpdate to create the scrolling transition
-
         transform.Rotate(0, 0, direction);
+
+        // Travel in the reverse direction so that the UI sprite is visually flipped
         outTargetPosition = new Vector2((-transform.right.x * Screen.width * 2) + Screen.width / 2, (-transform.right.y * Screen.height * 2) + Screen.height / 2);
 
     }
 
-    /// <summary>Scrolling screen transition that will block game view</summary>
-    public void CoverTransition(string requestedScene, int targetDoorID, float direction)
-    {
-        currentState = "Cover";  // Will be used later in fixedUpdate to create the scrolling transition
-
-        transform.rotation = Quaternion.Euler(0,0,0); // Reset rotation from last transition
-        transform.Rotate(0, 0, direction);
-        transform.position = new Vector2((transform.right.x * Screen.width * 2) + Screen.width / 2, (transform.right.y * Screen.height * 2) + Screen.height / 2);
-
-        blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 1); // Reset Opacity to be fully opaque
-
-        nextScene = requestedScene;
-        nextSceneDoor = targetDoorID;
-
-    }
-
-
-
-
-
-
-
-
-
     /// <summary> Fade-in screen transition that will block game view</summary>
     public void DiedTransition()
     {
+        currentState = "Die"; // Will be used to trigger fade in FixedUpdate
         blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 0); // Set initial opacity to 0, although this will likely already be transparent
-        transform.position = new Vector2(Screen.width / 2, Screen.height / 2);
-        currentState = "Die";
+        transform.position = new Vector2(Screen.width / 2, Screen.height / 2); // Place blocking image back to the center of the screen
     }
 
     /// <summary> Fade-out screen transition that will reveal game view</summary>
     public void DiedRevealTransition()
     {
+        currentState = "Revive"; // Will be used to trigger fade in FixedUpdate, of course you could use coroutines but this method works fine
         blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 1); // Set initial opacity to max so that it can then be reduced
-        transform.position = new Vector2(Screen.width / 2, Screen.height / 2);
-        currentState = "Revive";
+        transform.position = new Vector2(Screen.width / 2, Screen.height / 2); // Place blocking image back to the center of the screen
+
     }
 
 
     private void FixedUpdate()
     {
+        if (currentState == "FinishedTransition") { return; } // Prevent switch statement from firing if not required
+
         switch (currentState)
         {
             case "Uncover": 
-                if (Mathf.Abs(transform.position.x - outTargetPosition.x) > 1 || Mathf.Abs(transform.position.y - outTargetPosition.y) > 1)
+                if (Mathf.Abs(transform.position.x - outTargetPosition.x) > 1 || Mathf.Abs(transform.position.y - outTargetPosition.y) > 1) // If at target point with minor flexibility
                 {
-                    transform.position = Vector2.MoveTowards(transform.position, outTargetPosition, scrollHideSpeed);
+                    transform.position = Vector2.MoveTowards(transform.position, outTargetPosition, scrollHideSpeed); // Move away from screen center
                 }
                 else
                 {
-                    cinemachineBrain.m_DefaultBlend.m_Time = cinemachineNormalSpeed;
-                    player.GetComponent<PlayerMovement>().disableInput = false;
+                    cinemachineBrain.m_DefaultBlend.m_Time = cinemachineNormalSpeed; // Reset the camera speed to normal
+                    player.GetComponent<PlayerMovement>().disableInput = false; // Renable the player's ability to move
                     currentState = "FinishedTransition";
                 }
                 break;
-            case "Cover":
-                if (Mathf.Abs(transform.position.x - Screen.width / 2) > 1 || Mathf.Abs(transform.position.y - Screen.height / 2) > 1)
+            case "Cover": // INVOLVES SCENE LOAD
+                if (Mathf.Abs(transform.position.x - Screen.width / 2) > 1 || Mathf.Abs(transform.position.y - Screen.height / 2) > 1) // If covering screen with minor flexibility
                 {
-                    transform.position = Vector2.MoveTowards(transform.position, new Vector2(Screen.width/2, Screen.height/2), scrollHideSpeed);
+                    transform.position = Vector2.MoveTowards(transform.position, new Vector2(Screen.width/2, Screen.height/2), scrollHideSpeed); // Move towards screen center
                 }
                 else
                 {
-                    gameManager.GetComponent<GameManager>().targetDoorID = nextSceneDoor;
-                    gameManager.GetComponent<GameManager>().scrollDirection = transform.rotation.eulerAngles.z;
-                    gameManager.GetComponent<GameManager>().LoadScene(nextScene);
+                    gameManager.GetComponent<GameManager>().targetDoorID = nextSceneDoor; // Transfer over requested entrance information
+                    gameManager.GetComponent<GameManager>().scrollDirection = transform.rotation.eulerAngles.z; // Transfer over rotation so next uncover transition can match this
+                    gameManager.GetComponent<GameManager>().LoadScene(nextScene); // Initiate loading to the next requested scene
                     Destroy(this); // Destroy this script off the object so that it doesn't try to load the next scene multiple times.
                 }
                 break;
@@ -141,13 +129,13 @@ public class CanvasTransition : MonoBehaviour
                 }
                 break;
             case "Die":
-                restartBuffer--;
-                if (restartBuffer == 30) 
+                restartBuffer--; // Time before fade out starts, just so that dying doesn't instantly restart and the user can analyse a bit where they went wrong
+                if (restartBuffer == 30) // After 5 fixedframes will hide the player character's sprites, syncs up with the explosion which will hide this
                 {
                     player.transform.GetChild(0).GetComponent<SpriteRenderer>().enabled = false;
                     player.transform.GetChild(1).GetComponent<SpriteRenderer>().enabled = false; 
                 }
-                if (restartBuffer < 0)
+                if (restartBuffer < 0) // Wait time over
                 {
                     if (blockSprite.color.a < 1)  // Keep increasing the opacity of the blocking object until no longer visible
                     {
@@ -160,16 +148,11 @@ public class CanvasTransition : MonoBehaviour
                     }
                 }
                 break;
-            case "FinishedTransition":
-                break;
             default:
                 Debug.LogError("Unknown Canvas State: " + currentState); // Debugging Message
                 break;
         }
-
-
-
-
     }
+
 
 }

@@ -7,11 +7,13 @@ public class GameManager : MonoBehaviour
 {
     [Header("Player Progress")]
     public int chargesObtained = 1;
-    public bool jet1Obtained = false;
-    public bool jet2Obtained = false;
-    public bool jet3Obtained = false;
-    public bool jet4Obtained = false;
-    public bool boomerangObtained = false;
+    public bool vThrustObtained;
+    public bool hThrustObtained;
+    public bool vBurstObtained;
+    public bool hBurstObtained;
+    public bool boomerangObtained;
+    public List<int> itemsCollected;
+
 
     [Header("Respawn Information")]
     public Vector2 respawnPosition; // The last position the player activated a checkpoint at
@@ -38,6 +40,14 @@ public class GameManager : MonoBehaviour
 
     private void OnLevelWasLoaded(int level)
     {
+        foreach (GameObject item in GameObject.FindGameObjectsWithTag("Item")) // Destroy items that have already been collected
+        {
+            if (itemsCollected.Contains(item.GetComponent<UpgradeItem>().itemID))
+            {
+                Destroy(item);
+            }
+        }
+
         if (targetDoorID != -1)
         {
             canvasTransition = GameObject.FindGameObjectWithTag("Transition").GetComponent<CanvasTransition>();
@@ -52,7 +62,7 @@ public class GameManager : MonoBehaviour
                 }
             }
 
-            targetDoorID = -1;
+            targetDoorID = -1; // Revert back to invalid value just in case
             return;
         }
         else if (respawnPosition != new Vector2(0, 0)) // If respawnPosition has not yet been changed, Only applicable at the start of the game
@@ -77,10 +87,10 @@ public class GameManager : MonoBehaviour
     /// <summary> Briefly freeze the game </summary>
     public IEnumerator FreezeFrame(float duration)
     {
-        yield return new WaitForSeconds(0.005f);
+        yield return new WaitForSeconds(0.005f); // Small latency to allow any first frames of animations to play (i.e. jetpack burst)
 
-        Time.timeScale = 0.001f;
-        yield return new WaitForSeconds(0.0001f * duration);
-        Time.timeScale = 1;
+        Time.timeScale = 0.001f; // Change timeScale to make any movement barely visible but still be able to run code
+        yield return new WaitForSeconds(0.0001f * duration); // Will wait for seconds at a much slower rate, will still only last a few frames
+        Time.timeScale = 1; // Revert back to normal speed
     }
 }

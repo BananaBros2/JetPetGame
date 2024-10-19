@@ -9,20 +9,21 @@ public class NextAreaDoor : MonoBehaviour
     public CanvasTransition transition;
 
     [Header("SceneLinking")]
-    public int doorID = -1;
-    public string targetSceneName;
+    public int doorID = -1; // ID of this door which other scene's door's will need to link to this specific door
+    public string targetSceneName; // Which scene will load
     public int targetDoorID = -1; // Which door the player will 'enter' from in the next loaded scene
-    [Range(0,360)] public float direction;
+    [Tooltip("Default direction 0 will transition the screen from right to left")]
+    [Range(0,360)] public float direction = 0;
 
-    private bool activated;
+    private bool activated; // Bool to stop this from activating multiple times, alternative would be to destroy this script using Destroy(this)
 
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.CompareTag("Player") && !activated)
         {
-            activated = true; // Activate scene change sequence
-            transition.CoverTransition(targetSceneName, targetDoorID, direction);
+            activated = true; 
+            transition.CoverTransition(targetSceneName, targetDoorID, direction); // Activate scene change sequence
         }
     }
 

@@ -5,16 +5,17 @@ using UnityEngine;
 
 public class FallingPlatform : MonoBehaviour
 {
-
-    Vector3 originalTransform;
-    float shakeDuration = 0.2f;
-    private float shakeMagnitude = 0.05f;
-    private float dampingSpeed = 1.0f;
-
+    [Header("Invulnerability")]
     public float invulnerabilityDuration = 1;
     private bool invulnerable = true;
+    private bool triggeredToFall = false;
 
-    bool triggeredToFall = false;
+    [Header("Platform Shake")]
+    float shakeDuration = 0.2f;
+    private float shakeMagnitude = 0.05f;
+
+    private Vector3 originalTransform;
+
 
     private void Awake()
     {
@@ -23,13 +24,14 @@ public class FallingPlatform : MonoBehaviour
 
     }
 
-
+    /// <summary> Small coroutine for turning off invulnerability after a set time </summary>
     private IEnumerator InvulnerabilityTime(float waitTime)
     {
         yield return new WaitForSeconds(waitTime);
         invulnerable = false;
     }
 
+    /// <summary> Will start collapse of platform if not invulnerable or already falling </summary>
     public void AttemptCollapse()
     {
         if (!triggeredToFall && !invulnerable)
@@ -40,30 +42,34 @@ public class FallingPlatform : MonoBehaviour
 
     }
 
+    /// <summary> Begin platform decent and trigger respawn for a replacement </summary>
     private IEnumerator Collapse(float waitTime) 
     {
         while (true)
         {
             if (shakeDuration > 0)
             {
-                transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude;
-                shakeDuration -= Time.deltaTime * dampingSpeed;
+                transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude; // Same method for shake as the ScreenVibration Script
+                shakeDuration -= Time.deltaTime;
             }
-            else
+            else // After shaking for set amount of time:
             {
-                StopAllCoroutines();   
-                transform.localPosition = originalTransform;
-                Rigidbody2D rb = transform.AddComponent<Rigidbody2D>();
+                StopAllCoroutines(); 
+                transform.localPosition = originalTransform; // Reset back to original position without any shake offset
+
+                Rigidbody2D rb = transform.AddComponent<Rigidbody2D>(); // Adds new rigidbody2D so that it will fall and freezes Z rotation
                 rb.constraints = RigidbodyConstraints2D.FreezeRotation;
-                transform.parent.GetComponent<FallingPlatformHolder>().SpawnNewPlatform();
-                transform.SetParent(null);
-                Invoke("DestroyPlatform", 5);
+
+                transform.parent.GetComponent<FallingPlatformHolder>().SpawnNewPlatform(); // Spawn replacement
+                transform.SetParent(null); // Sever connection to parent
+                Invoke("DestroyPlatform", 5); // Start destroy countdown
             }
             yield return new WaitForSeconds(waitTime);
         }
     }
 
-    private void DestroyPlatform() // Destroy the platform only if there is nothing still attached to it i.e. the player
+    /// <summary> Destroy platform safely by checking the child count </summary>
+    private void DestroyPlatform() // Destroy the platform only if there is nothing still attached to it (i.e. the player)
     {
         if(transform.childCount == 0)
         {
@@ -71,7 +77,7 @@ public class FallingPlatform : MonoBehaviour
         }
         else
         {
-            Invoke("DestroyPlatform", 5);
+            Invoke("DestroyPlatform", 4); // Restart timer if failed
         }
     }
 }

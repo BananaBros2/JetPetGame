@@ -9,6 +9,7 @@ TagManager:
   - Hazard
   - Transition
   - Entrance
+  - Item
   layers:
   - Default
   - TransparentFX

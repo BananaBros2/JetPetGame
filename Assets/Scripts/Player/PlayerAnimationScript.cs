@@ -78,6 +78,7 @@ public class PlayerAnimationScript : MonoBehaviour
         animator.SetBool("UsingJet", false); // Resetting various animator parameters
         animator.SetBool("JetSideways", false); // Certainly not the best way to do this
         animator.SetBool("JetFail", false);
+        animator.SetBool("Pickup", false);
         flameAnimator.SetBool("Vertical", false);
         flameAnimator.SetBool("Horizontal", false);
 
@@ -87,6 +88,7 @@ public class PlayerAnimationScript : MonoBehaviour
                 animator.SetBool("Died", true);
                 break;
             case "Pickup":
+                animator.SetBool("Pickup", true);
                 break;
             case "JetVertical": // Vertical Jet Actions
                 flameAnimator.SetBool("Vertical", true);

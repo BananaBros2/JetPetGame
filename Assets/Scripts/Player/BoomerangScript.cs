@@ -1,4 +1,3 @@
-using JetBrains.Annotations;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,6 +5,8 @@ using UnityEngine;
 public class BoomerangScript : MonoBehaviour
 {
     public GameObject player;
+    private Animator animator;
+
     public Vector2 direction;
     public bool outGoing = true;
     public float outGoingSpeed = 1;
@@ -14,15 +15,21 @@ public class BoomerangScript : MonoBehaviour
     private float lifeRemaining;
     public LayerMask collideWith;
 
+    private bool destroyed;
+
     // Start is called before the first frame update
     void Start()
     {
+        animator = transform.GetComponent<Animator>();
+
         lifeRemaining = lifeTime;
     }
 
     // Update is called once per frame
     void FixedUpdate()
     {
+        if (destroyed) { return; }
+
         lifeRemaining -= Time.fixedDeltaTime;
         if (lifeRemaining > 0)
         {
@@ -37,6 +44,8 @@ public class BoomerangScript : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
+        if (destroyed) { return; }
+
         if ((((1 << collision.gameObject.layer) & collideWith) != 0) && lifeRemaining > 0)
         {
             lifeRemaining = 0;
@@ -44,15 +53,25 @@ public class BoomerangScript : MonoBehaviour
         }
         else if ((((1 << collision.gameObject.layer) & collideWith) != 0) && lifeRemaining < 0.5f)
         {
-            Destroy(this.gameObject);
+            destroyed = true;
+            animator.SetTrigger("Destroy");
+            Invoke("DestroyBoomerang", 0.4f);
         }
     }
     private void OnTriggerStay2D(Collider2D collision)
     {
         if (collision.transform.CompareTag("Player") && lifeRemaining < 0)
         {
+            player.transform.GetComponent<PlayerMovement>().boomerangAvailable = true;
             Destroy(this.gameObject);
         }
+    }
+
+    private void DestroyBoomerang()
+    {
+        player.transform.GetComponent<PlayerMovement>().boomerangAvailable = true;
+        Destroy(this.gameObject);
+        
     }
 
 }

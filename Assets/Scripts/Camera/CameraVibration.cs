@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SocialPlatforms;
 
 public class CameraVibration : MonoBehaviour
 {
@@ -18,48 +17,54 @@ public class CameraVibration : MonoBehaviour
         originalTransform = transform.localPosition;
     }
 
-    public void ShakeOnceStart()
+    /// <summary> Starts the coroutine to shake the screen for a brief period of time </summary>
+    public void ShakeOnceStart(float duration = 0.15f)
     {
-        StartCoroutine("ShakeOnce", timeBetweenIndShakes); // Start coroutine to shake the camera for a brief period of time
+        StartCoroutine(ShakeOnce(timeBetweenIndShakes, duration)); // Start coroutine to shake the camera for a set period of time
     }
 
-    private IEnumerator ShakeOnce(float waitTime)
+    /// <summary> Coroutine for a brief but more powerful screen shake </summary>
+    private IEnumerator ShakeOnce(float waitTime, float duration)
     {
-        float shakeDuration = 0.15f;
+        float shakeDuration = duration; // Initialising variables for while loop that determine time remaining 
         bool shaking = true;
         while (shaking)
         {
-            
             if (shakeDuration > 0)
             {
                 transform.localPosition = originalTransform + Random.insideUnitSphere * powerfulShakeMagnitude; // Changes the camera's offset to a random value within an area around the original position
-                yield return new WaitForSeconds(waitTime);
-                shakeDuration -= waitTime;
+                shakeDuration -= waitTime;  // Decrease shake duration remaining
             }
             else
             {
-                shaking = false;
+                shaking = false; // Exit loop
                 transform.localPosition = originalTransform; // Resets the camera's position to the original state
             }
-            yield return new WaitForSeconds(waitTime);
+            yield return new WaitForSeconds(waitTime); // Loop back to start of 'While' after some (waitTime) delay
         }
     }
+
+
+    /// <summary> Starts the coroutine to endlessly shake the screen until cancelled through ConstantShakeCancel() </summary>
     public void ConstantShakeStart()
     {
         StartCoroutine("ConstantShake", timeBetweenIndShakes);
     }
+
+    /// <summary> Stop coroutine for constant screen shaking </summary>
     public void ConstantShakeCancel()
     {
         StopCoroutine("ConstantShake"); // Stop shaking coroutine
         transform.localPosition = originalTransform; // Resets the camera's position to the original state
     }
 
+    /// <summary> </summary>
     private IEnumerator ConstantShake(float waitTime)
     {
         while (true)
         {
             transform.localPosition = originalTransform + Random.insideUnitSphere * shakeMagnitude; // Changes the camera's offset to a random value within an area around the original position
-            yield return new WaitForSeconds(waitTime);
+            yield return new WaitForSeconds(waitTime); // Time until next displacement
 
         }
     }
