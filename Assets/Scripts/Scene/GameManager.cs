@@ -40,13 +40,10 @@ public class GameManager : MonoBehaviour
 
     private void OnLevelWasLoaded(int level)
     {
-        foreach (GameObject item in GameObject.FindGameObjectsWithTag("Item")) // Destroy items that have already been collected
-        {
-            if (itemsCollected.Contains(item.GetComponent<UpgradeItem>().itemID))
-            {
-                Destroy(item);
-            }
-        }
+        try { GameObject player = GameObject.FindGameObjectWithTag("Player"); }
+        catch {
+            print("jee");
+            return; }
 
         if (targetDoorID != -1)
         {
@@ -69,6 +66,16 @@ public class GameManager : MonoBehaviour
         {
             GameObject.FindGameObjectWithTag("Player").transform.position = respawnPosition; // Relocate the player to the last saved checkpoint
         }
+
+        foreach (GameObject item in GameObject.FindGameObjectsWithTag("Item")) // Destroy items that have already been collected
+        {
+            if (itemsCollected.Contains(item.GetComponent<UpgradeItem>().itemID))
+            {
+                print(item);
+                Destroy(item);
+            }
+        }
+
 
     }
 

@@ -74,6 +74,12 @@ public class CanvasTransition : MonoBehaviour
         blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 0); // Set initial opacity to 0, although this will likely already be transparent
         transform.position = new Vector2(Screen.width / 2, Screen.height / 2); // Place blocking image back to the center of the screen
     }
+    public void ExitTransition()
+    {
+        currentState = "ExitStage"; // Will be used to trigger fade in FixedUpdate
+        blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, 0); // Set initial opacity to 0, although this will likely already be transparent
+        transform.position = new Vector2(Screen.width / 2, Screen.height / 2); // Place blocking image back to the center of the screen
+    }
 
     /// <summary> Fade-out screen transition that will reveal game view</summary>
     public void DiedRevealTransition()
@@ -154,5 +160,21 @@ public class CanvasTransition : MonoBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (currentState == "ExitStage")
+        {
+            if (blockSprite.color.a < 1)  // Keep increasing the opacity of the blocking object until no longer visible
+            {
+                blockSprite.color = new Color(blockSprite.color.r, blockSprite.color.g, blockSprite.color.b, blockSprite.color.a + opacityIncreaseRate * (Time.deltaTime+0.00001f * 10000)); // Reduce Opacity by set value
+            }
+            else
+            {
+                Time.timeScale = 1;
+                gameManager.GetComponent<GameManager>().LoadScene("MainMenu");
+                Destroy(this); // Destroy this script off the object so that it doesn't try to load the next scene multiple times.
+            }
+        }
+    }
 
 }
